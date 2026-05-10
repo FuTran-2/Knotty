@@ -37,7 +37,7 @@ interface Props {
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined
 const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
 
 const INTRO_WITH_AI =
   "Hi! I'm powered by Gemini. Paste a contact in plain text and I'll parse it for you — ask any clarifying questions needed."
