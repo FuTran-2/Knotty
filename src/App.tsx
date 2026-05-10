@@ -1,14 +1,32 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import { ChatBot } from './components/ChatBot'
 import { GraphView } from './components/GraphView'
+import { LoginPage } from './components/LoginPage'
 import { Sidebar } from './components/Sidebar'
+import { getCurrentUser, signOut } from './lib/auth'
+import type { AuthUser } from './lib/auth'
 import { parseLinkedInConnectionsCsv } from './lib/csv'
 import { normalizeRelationship } from './types/network'
 import { createNodeId, initialNodes } from './types/network'
 import type { NodeDraft, PersonNode } from './types/network'
 
 function App() {
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+
+  // Restore session on mount (replace body with Cognito's getCurrentUser)
+  useEffect(() => {
+    getCurrentUser()
+      .then(setAuthUser)
+      .finally(() => setAuthLoading(false))
+  }, [])
+
+  const handleSignOut = async () => {
+    await signOut()
+    setAuthUser(null)
+  }
+
   const [nodes, setNodes] = useState<PersonNode[]>(initialNodes)
   const [standaloneGroups, setStandaloneGroups] = useState<string[]>([])
   const [activeGroup, setActiveGroup] = useState('all')
@@ -86,7 +104,7 @@ function App() {
     setSelectedNodeId((current) => (current === nodeId ? (nodes[0]?.id ?? '') : current))
   }
 
-  const importLinkedInCsv = async (file: File) => {
+  const importLinkedInCsv = async (file: File): Promise<number> => {
     const text = await file.text()
     const imported = parseLinkedInConnectionsCsv(text)
 
@@ -94,14 +112,24 @@ function App() {
       setNodes((current) => [...imported, ...current])
       setSelectedNodeId(imported[0].id)
     }
+    return imported.length
   }
 
   // groups without the leading 'all' sentinel, for chatbot and add-user forms
   const allGroups = useMemo(() => groups.filter((g) => g !== 'all'), [groups])
 
+  if (authLoading) {
+    return <div className="login-shell"><div className="login-loading" /></div>
+  }
+
+  if (!authUser) {
+    return <LoginPage onLogin={setAuthUser} />
+  }
+
   return (
     <div className="app-shell">
       <Sidebar
+        authUser={authUser}
         nodesCount={nodes.length}
         groups={groups}
         activeGroup={activeGroup}
@@ -111,6 +139,7 @@ function App() {
         onImportLinkedInCsv={importLinkedInCsv}
         onAddNode={onAddNode}
         onAddGroup={addGroup}
+        onSignOut={handleSignOut}
       />
       <GraphView
         visibleNodes={visibleNodes}

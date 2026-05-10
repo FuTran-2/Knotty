@@ -32,44 +32,61 @@ const parseCsvRow = (row: string): string[] => {
 }
 
 export function parseLinkedInConnectionsCsv(content: string): PersonNode[] {
+  // LinkedIn prepends 3 note lines before the actual CSV header — skip them
   const lines = content
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
 
-  if (lines.length <= 1) return []
+  // Find the real header row (contains "First Name")
+  const headerLineIndex = lines.findIndex((line) =>
+    line.toLowerCase().includes('first name'),
+  )
+  if (headerLineIndex < 0 || headerLineIndex >= lines.length - 1) return []
 
-  const headers = parseCsvRow(lines[0]).map((header) => header.toLowerCase())
-  const column = (key: string) => headers.findIndex((header) => header === key.toLowerCase())
+  const headers = parseCsvRow(lines[headerLineIndex]).map((h) => h.toLowerCase())
+  const col = (key: string) => headers.findIndex((h) => h === key.toLowerCase())
 
-  const firstNameIndex = column('first name')
-  const lastNameIndex = column('last name')
-  const emailIndex = column('email address')
-  const companyIndex = column('company')
-  const positionIndex = column('position')
+  const firstNameIdx   = col('first name')
+  const lastNameIdx    = col('last name')
+  const urlIdx         = col('url')
+  const emailIdx       = col('email address')
+  const companyIdx     = col('company')
+  const positionIdx    = col('position')
+  const connectedOnIdx = col('connected on')
 
   const imported: PersonNode[] = []
 
-  lines.slice(1).forEach((line) => {
+  lines.slice(headerLineIndex + 1).forEach((line) => {
     const cells = parseCsvRow(line)
-    const first = firstNameIndex >= 0 ? cells[firstNameIndex] ?? '' : ''
-    const last = lastNameIndex >= 0 ? cells[lastNameIndex] ?? '' : ''
-    const name = `${first} ${last}`.trim()
+    const get = (idx: number) => (idx >= 0 ? (cells[idx] ?? '').trim() : '')
+
+    const first = get(firstNameIdx)
+    const last  = get(lastNameIdx)
+    const name  = `${first} ${last}`.trim()
     if (!name) return
 
-    const email = emailIndex >= 0 ? cells[emailIndex] ?? '' : ''
-    const company = companyIndex >= 0 ? cells[companyIndex] ?? '' : ''
-    const position = positionIndex >= 0 ? cells[positionIndex] ?? '' : ''
-    const groups = ['linkedin']
-    if (position.toLowerCase().includes('engineer')) groups.push('software engineer')
+    const url         = get(urlIdx)
+    const email       = get(emailIdx)
+    const company     = get(companyIdx)
+    const position    = get(positionIdx)
+    const connectedOn = get(connectedOnIdx)
+
+    const groups: string[] = ['linkedin']
+    const posLower = position.toLowerCase()
+    if (posLower.includes('engineer') || posLower.includes('developer')) groups.push('software engineer')
+
+    const contactParts = [email, url, company, position].filter(Boolean)
+    const notesParts = ['Imported from LinkedIn CSV export']
+    if (connectedOn) notesParts.push(`Connected: ${connectedOn}`)
 
     imported.push({
       id: createNodeId(),
       name,
       photo: createAvatarUrl(name),
-      contact: [email, company, position].filter(Boolean).join(' | '),
+      contact: contactParts.join(' | '),
       relationship: 'Professional',
-      notes: 'Imported from LinkedIn connections CSV export',
+      notes: notesParts.join(' · '),
       groups,
       source: 'linkedin',
     })

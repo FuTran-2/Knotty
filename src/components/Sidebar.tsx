@@ -1,24 +1,26 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import {
-  ACCOUNT_NAME,
   ACCOUNT_PHOTO,
   RELATIONSHIP_ORDER,
   createAvatarUrl,
   normalizeRelationship,
 } from '../types/network'
 import type { NodeDraft, Relationship } from '../types/network'
+import type { AuthUser } from '../lib/auth'
 
 type SidebarProps = {
+  authUser: AuthUser
   nodesCount: number
   groups: string[]
   activeGroup: string
   onActiveGroupChange: (group: string) => void
   search: string
   onSearchChange: (value: string) => void
-  onImportLinkedInCsv: (file: File) => Promise<void>
+  onImportLinkedInCsv: (file: File) => Promise<number>
   onAddNode: (draft: NodeDraft) => void
   onAddGroup: (name: string) => void
+  onSignOut: () => void
 }
 
 type PersonFormState = {
@@ -40,6 +42,7 @@ const initialPersonForm: PersonFormState = {
 }
 
 export function Sidebar({
+  authUser,
   nodesCount,
   groups,
   activeGroup,
@@ -49,10 +52,13 @@ export function Sidebar({
   onImportLinkedInCsv,
   onAddNode,
   onAddGroup,
+  onSignOut,
 }: SidebarProps) {
   const [openPanel, setOpenPanel] = useState<null | 'person' | 'group'>(null)
   const [personForm, setPersonForm] = useState<PersonFormState>(initialPersonForm)
   const [groupName, setGroupName] = useState('')
+  const [importStatus, setImportStatus] = useState<null | { count: number; error?: string }>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const togglePanel = (panel: 'person' | 'group') => {
     setOpenPanel((current) => (current === panel ? null : panel))
@@ -89,18 +95,30 @@ export function Sidebar({
   const handleImport = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
-    await onImportLinkedInCsv(file)
+    setImportStatus(null)
+    try {
+      const count = await onImportLinkedInCsv(file)
+      setImportStatus({ count })
+    } catch {
+      setImportStatus({ count: 0, error: 'Could not parse the file. Make sure it is a LinkedIn Connections CSV.' })
+    }
     event.target.value = ''
   }
 
   return (
     <aside className="left-pane">
       <div className="account-card">
-        <img src={ACCOUNT_PHOTO} alt={ACCOUNT_NAME} />
-        <div>
-          <h1>{ACCOUNT_NAME}</h1>
+        <img src={ACCOUNT_PHOTO} alt={authUser.name} />
+        <div className="account-card-info">
+          <h1>{authUser.name}</h1>
           <p>{nodesCount} connections</p>
         </div>
+        <button type="button" className="signout-btn" onClick={onSignOut} title="Sign out">
+          <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15">
+            <path fillRule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 01-1.5 0v-2a.75.75 0 00-.75-.75h-5.5a.75.75 0 00-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 00.75-.75v-2a.75.75 0 011.5 0v2A2.25 2.25 0 0110.75 18h-5.5A2.25 2.25 0 013 15.75V4.25z" clipRule="evenodd" />
+            <path fillRule="evenodd" d="M19 10a.75.75 0 00-.75-.75H8.704l1.048-1.168a.75.75 0 10-1.004-1.116l-2.5 2.25a.75.75 0 000 1.116l2.5 2.25a.75.75 0 101.004-1.116L8.704 10.75H18.25A.75.75 0 0019 10z" clipRule="evenodd" />
+          </svg>
+        </button>
       </div>
 
       <div className="panel">
@@ -120,18 +138,55 @@ export function Sidebar({
       </div>
 
       <div className="panel">
-        <h2>Search & Filter</h2>
+        <h2>Search</h2>
         <input
           type="text"
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder="Search name, note, contact..."
         />
-        <p className="small">LinkedIn API is restricted, so use CSV export import below.</p>
-        <label className="file-input">
-          Import LinkedIn CSV
-          <input type="file" accept=".csv,text/csv" onChange={handleImport} />
-        </label>
+      </div>
+
+      {/* LinkedIn Import */}
+      <div className="panel linkedin-import-panel">
+        <h2>Import from LinkedIn</h2>
+        <ol className="linkedin-steps">
+          <li>
+            Go to{' '}
+            <a href="https://www.linkedin.com/mypreferences/d/download-my-data" target="_blank" rel="noreferrer">
+              LinkedIn → Settings
+            </a>
+          </li>
+          <li>Data Privacy → <strong>Get a copy of your data</strong></li>
+          <li>Select <strong>Connections</strong> → Request archive</li>
+          <li>Download the ZIP, then upload <code>Connections.csv</code> below</li>
+        </ol>
+
+        <button
+          type="button"
+          className="linkedin-import-btn"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-14 9v2h14v-2H5z" />
+          </svg>
+          Upload Connections.csv
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,text/csv"
+          style={{ display: 'none' }}
+          onChange={handleImport}
+        />
+
+        {importStatus && (
+          <p className={`import-status ${importStatus.error ? 'import-error' : 'import-success'}`}>
+            {importStatus.error
+              ? importStatus.error
+              : `Imported ${importStatus.count} connection${importStatus.count !== 1 ? 's' : ''} successfully.`}
+          </p>
+        )}
       </div>
 
       <div className="panel">
