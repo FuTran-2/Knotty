@@ -1259,6 +1259,86 @@
   to { transform: rotate(360deg); }
 }
 
+.login-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: rgba(200, 215, 245, 0.22);
+  border: 1px solid rgba(200, 218, 255, 0.55);
+  border-radius: 12px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.login-tabs button {
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: #6070a0;
+  padding: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  transition: all 0.18s ease;
+}
+
+.login-tabs button.active {
+  background: rgba(255, 255, 255, 0.85);
+  color: #1a2540;
+  box-shadow: 0 2px 8px rgba(100, 140, 220, 0.14);
+}
+
+.login-tabs button:not(.active):hover {
+  color: #1a2540;
+}
+
+.login-verify-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  padding: 4px 0 8px;
+  color: #3d5080;
+}
+
+.login-verify-info svg {
+  color: #5b8fff;
+}
+
+.login-verify-info p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #4a5a7a;
+}
+
+.login-verify-info strong {
+  color: #1a2540;
+}
+
+.login-code-input {
+  letter-spacing: 0.25em;
+  font-size: 1.2rem !important;
+  text-align: center;
+}
+
+.login-back {
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 0.84rem;
+  color: #6070a0;
+  cursor: pointer;
+  padding: 4px 0;
+  text-align: center;
+  transition: color 0.15s ease;
+}
+
+.login-back:hover:not(:disabled) {
+  color: #3050a0;
+}
+
 .login-cognito-note {
   display: flex;
   align-items: center;
