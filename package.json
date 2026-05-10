@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "aws-amplify": "^6.17.0",
     "d3-force": "^3.0.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"

@@ -1,21 +1,13 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// Auth abstraction layer
-//
-// REPLACING WITH AWS COGNITO (Amplify v6):
-//   1. npm install aws-amplify
-//   2. Create src/lib/amplifyConfig.ts and call Amplify.configure({ Auth: { ... } })
-//   3. Import it once in main.tsx: import './lib/amplifyConfig'
-//   4. Swap each function body below with the commented Cognito equivalent
-// ─────────────────────────────────────────────────────────────────────────────
-
-// import {
-//   signIn as cognitoSignIn,
-//   signUp as cognitoSignUp,
-//   confirmSignUp as cognitoConfirmSignUp,
-//   signOut as cognitoSignOut,
-//   getCurrentUser as cognitoGetCurrentUser,
-//   fetchUserAttributes,
-// } from 'aws-amplify/auth'
+import {
+  confirmSignUp as cognitoConfirmSignUp,
+  fetchUserAttributes,
+  getCurrentUser as cognitoGetCurrentUser,
+  signIn as cognitoSignIn,
+  signInWithRedirect,
+  signOut as cognitoSignOut,
+  signUp as cognitoSignUp,
+} from 'aws-amplify/auth'
+import { isCognitoConfigured } from './amplifyConfig'
 
 export type AuthUser = {
   email: string
@@ -23,76 +15,104 @@ export type AuthUser = {
   name: string
 }
 
+const missingConfigMessage =
+  'Cognito is missing VITE_COGNITO_USER_POOL_ID. Add it to your Amplify environment variables and restart the app.'
+
+function assertCognitoConfigured() {
+  if (!isCognitoConfigured) {
+    throw new Error(missingConfigMessage)
+  }
+}
+
+function getReadableAuthError(err: unknown, fallback: string) {
+  if (err instanceof Error && err.message) return err.message
+  return fallback
+}
+
+function authUserFromAttributes(username: string, attrs: Record<string, string | undefined>): AuthUser {
+  const email = attrs.email ?? username
+  return {
+    email,
+    name: attrs.name ?? email.split('@')[0],
+  }
+}
+
 // ── Sign in ──────────────────────────────────────────────────────────────────
 
-/**
- * Cognito replacement:
- *   const { isSignedIn } = await cognitoSignIn({ username: email, password })
- *   if (!isSignedIn) throw new Error('Additional sign-in step required.')
- *   const attrs = await fetchUserAttributes()
- *   return { email: attrs.email ?? email, name: attrs.name ?? email.split('@')[0] }
- */
 export async function signIn(email: string, password: string): Promise<AuthUser> {
   if (!email.trim() || !password) throw new Error('Email and password are required.')
-  await new Promise((r) => setTimeout(r, 600))
-  return { email: email.trim(), name: email.split('@')[0] }
+  assertCognitoConfigured()
+
+  try {
+    const result = await cognitoSignIn({ username: email.trim(), password })
+    if (!result.isSignedIn) {
+      throw new Error(`Additional sign-in step required: ${result.nextStep.signInStep}`)
+    }
+
+    const attrs = await fetchUserAttributes()
+    return authUserFromAttributes(email.trim(), attrs)
+  } catch (err) {
+    throw new Error(getReadableAuthError(err, 'Sign-in failed. Please try again.'), { cause: err })
+  }
 }
 
 // ── Sign up ──────────────────────────────────────────────────────────────────
 
-/**
- * Registers a new user. After this succeeds, call confirmSignUp() with the
- * verification code sent to the user's email.
- *
- * Cognito replacement:
- *   await cognitoSignUp({
- *     username: email,
- *     password,
- *     options: { userAttributes: { email, name } },
- *   })
- */
 export async function signUp(email: string, password: string, name: string): Promise<void> {
   if (!email.trim()) throw new Error('Email is required.')
   if (password.length < 8) throw new Error('Password must be at least 8 characters.')
   if (!name.trim()) throw new Error('Name is required.')
-  await new Promise((r) => setTimeout(r, 700))
-  // Placeholder: registration always succeeds. Replace with Cognito call above.
+  assertCognitoConfigured()
+
+  try {
+    await cognitoSignUp({
+      username: email.trim(),
+      password,
+      options: {
+        userAttributes: {
+          email: email.trim(),
+          name: name.trim(),
+        },
+      },
+    })
+  } catch (err) {
+    throw new Error(getReadableAuthError(err, 'Sign-up failed. Please try again.'), { cause: err })
+  }
 }
 
-/**
- * Confirms the sign-up with the 6-digit code sent to the user's email.
- * After confirmation, call signIn() to start a session.
- *
- * Cognito replacement:
- *   await cognitoConfirmSignUp({ username: email, confirmationCode: code })
- */
-export async function confirmSignUp(_email: string, code: string): Promise<void> {
+export async function confirmSignUp(email: string, code: string): Promise<void> {
   if (!code.trim()) throw new Error('Verification code is required.')
-  await new Promise((r) => setTimeout(r, 500))
-  // Placeholder: any non-empty code is accepted. Replace with Cognito call above.
+  assertCognitoConfigured()
+
+  try {
+    await cognitoConfirmSignUp({ username: email.trim(), confirmationCode: code.trim() })
+  } catch (err) {
+    throw new Error(getReadableAuthError(err, 'Verification failed. Please try again.'), { cause: err })
+  }
+}
+
+export async function signInWithHostedUi(): Promise<void> {
+  assertCognitoConfigured()
+  await signInWithRedirect()
 }
 
 // ── Sign out ─────────────────────────────────────────────────────────────────
 
-/**
- * Cognito replacement:
- *   await cognitoSignOut()
- */
 export async function signOut(): Promise<void> {
-  await new Promise((r) => setTimeout(r, 200))
+  if (!isCognitoConfigured) return
+  await cognitoSignOut()
 }
 
 // ── Restore session ──────────────────────────────────────────────────────────
 
-/**
- * Cognito replacement:
- *   try {
- *     const user = await cognitoGetCurrentUser()
- *     const attrs = await fetchUserAttributes()
- *     return { email: attrs.email ?? user.username, name: attrs.name ?? user.username }
- *   } catch { return null }
- */
 export async function getCurrentUser(): Promise<AuthUser | null> {
-  // Placeholder — no persistent session without Cognito.
-  return null
+  if (!isCognitoConfigured) return null
+
+  try {
+    const user = await cognitoGetCurrentUser()
+    const attrs = await fetchUserAttributes()
+    return authUserFromAttributes(user.username, attrs)
+  } catch {
+    return null
+  }
 }

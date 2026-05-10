@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { confirmSignUp, signIn, signUp } from '../lib/auth'
+import { confirmSignUp, signIn, signInWithHostedUi, signUp } from '../lib/auth'
 import type { AuthUser } from '../lib/auth'
 
 type Mode = 'signin' | 'signup' | 'verify'
@@ -47,6 +47,17 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     setMode(next)
     setError('')
     setCode('')
+  }
+
+  const handleHostedUi = async () => {
+    setError('')
+    setLoading(true)
+    try {
+      await signInWithHostedUi()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not open Cognito. Please try again.')
+      setLoading(false)
+    }
   }
 
   // ── Sign in ────────────────────────────────────────────────────────────────
@@ -128,6 +139,12 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               Sign up
             </button>
           </div>
+        )}
+
+        {mode !== 'verify' && (
+          <button type="button" className="login-hosted-submit" onClick={handleHostedUi} disabled={loading}>
+            {loading ? <span className="login-spinner" /> : 'Continue with Cognito'}
+          </button>
         )}
 
         {/* ── Sign in form ──────────────────────────────────────────────── */}

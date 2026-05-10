@@ -17,6 +17,23 @@ npm run lint
 npm run build
 ```
 
+## Cognito Setup
+
+The app uses AWS Amplify Auth against Cognito. Copy `.env.example` to `.env.local`, then set your actual User Pool ID:
+
+```bash
+VITE_COGNITO_USER_POOL_ID=us-east-1_yourPoolId
+```
+
+The app client ID, Hosted UI domain, and scopes are already filled from the Cognito URL you provided. In the Cognito app client settings, make sure these callback and sign-out URLs are allowed:
+
+```text
+http://localhost:5173/
+https://main.d3c520skipl9wg.amplifyapp.com/
+```
+
+Use the local URL in `.env.local` while developing. In Amplify hosting, set `VITE_COGNITO_REDIRECT_SIGN_IN` and `VITE_COGNITO_REDIRECT_SIGN_OUT` to `https://main.d3c520skipl9wg.amplifyapp.com/`.
+
 ## Features
 
 - Node model: `name`, `photo`, `contact`, `relationship`, `notes`, `groups`, `source`
