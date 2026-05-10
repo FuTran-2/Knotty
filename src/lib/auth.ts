@@ -1,6 +1,5 @@
 import {
   confirmSignUp as cognitoConfirmSignUp,
-  fetchUserAttributes,
   fetchAuthSession,
   getCurrentUser as cognitoGetCurrentUser,
   signIn as cognitoSignIn,
@@ -30,11 +29,18 @@ function getReadableAuthError(err: unknown, fallback: string) {
   return fallback
 }
 
-function authUserFromAttributes(username: string, attrs: Record<string, string | undefined>): AuthUser {
-  const email = attrs.email ?? username
+function stringClaim(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value : undefined
+}
+
+async function authUserFromSession(username: string): Promise<AuthUser> {
+  const session = await fetchAuthSession()
+  const payload = session.tokens?.idToken?.payload ?? {}
+  const email = stringClaim(payload.email) ?? username
+
   return {
     email,
-    name: attrs.name ?? email.split('@')[0],
+    name: stringClaim(payload.name) ?? stringClaim(payload.given_name) ?? email.split('@')[0],
   }
 }
 
@@ -60,9 +66,13 @@ export async function signIn(email: string, password: string): Promise<AuthUser>
       throw new Error(`Additional sign-in step required: ${result.nextStep.signInStep}`)
     }
 
-    const attrs = await fetchUserAttributes()
-    return authUserFromAttributes(email.trim(), attrs)
+    return authUserFromSession(email.trim())
   } catch (err) {
+    if (getReadableAuthError(err, '').toLowerCase().includes('already a signed in user')) {
+      const currentUser = await getCurrentUser()
+      if (currentUser) return currentUser
+    }
+
     throw new Error(getReadableAuthError(err, 'Sign-in failed. Please try again.'), { cause: err })
   }
 }
@@ -123,10 +133,8 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
-      await fetchAuthSession()
       const user = await cognitoGetCurrentUser()
-      const attrs = await fetchUserAttributes()
-      return authUserFromAttributes(user.username, attrs)
+      return await authUserFromSession(user.username)
     } catch {
       if (attempt < attempts - 1) await sleep(300)
     }
