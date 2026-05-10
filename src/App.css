@@ -19,8 +19,8 @@
 
 .app-shell {
   display: grid;
-  grid-template-columns: 320px 1fr;
-  min-height: 100vh;
+  grid-template-columns: minmax(250px, 22vw) 1fr;
+  height: 100vh;
   background: #fdfaf6;
   font-family: 'Gochi Hand', cursive;
   position: relative;
@@ -39,17 +39,59 @@
   pointer-events: none;
 }
 
+.toast-stack {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 260;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.doodle-toast {
+  min-width: 220px;
+  max-width: min(380px, calc(100vw - 32px));
+  padding: 10px 14px 10px 34px;
+  border: 3px solid #000;
+  border-radius: 12px 10px 13px 11px;
+  background: #fff8bf;
+  color: #111;
+  font-size: 1rem;
+  line-height: 1.2;
+  box-shadow: 5px 5px 0 var(--crayon-blue);
+  position: relative;
+  transform: rotate(-0.7deg);
+  animation: toast-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.doodle-toast-pin {
+  position: absolute;
+  left: 10px;
+  top: 9px;
+  color: var(--crayon-red);
+  font-size: 0.9rem;
+  transform: rotate(-12deg);
+}
+
+@keyframes toast-in {
+  0% { opacity: 0; transform: translateY(-6px) rotate(-2deg) scale(0.97); }
+  100% { opacity: 1; transform: translateY(0) rotate(-0.7deg) scale(1); }
+}
+
 .left-pane {
   position: relative;
   z-index: 10;
   border-right: 2px solid #000;
-  padding: 24px 16px;
+  padding: 14px 12px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 10px;
   background: #fffef0; /* Slightly more yellow paper */
   box-shadow: 4px 0 15px rgba(0,0,0,0.05);
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .left-pane::-webkit-scrollbar {
@@ -64,13 +106,20 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px;
+  padding: 12px;
   border: 2px solid #000;
   border-radius: 4px;
   background: #fff9c4; /* Yellowish paper */
   box-shadow: 5px 5px 0 var(--crayon-blue);
   transform: rotate(-1.5deg);
   margin-bottom: 10px;
+  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+}
+
+.account-card:hover {
+  transform: translate(-2px, -2px) rotate(-1deg);
+  box-shadow: 7px 7px 0 var(--crayon-blue);
+  filter: saturate(1.05);
 }
 
 .account-card img {
@@ -82,7 +131,7 @@
 }
 
 .account-card h1 {
-  font-size: 1.4rem;
+  font-size: 1.15rem;
   margin: 0;
   font-weight: 700;
   color: #1a1a1a;
@@ -92,19 +141,26 @@
 .account-card p {
   margin: 4px 0 0;
   color: #666;
-  font-size: 1rem;
+  font-size: 0.9rem;
 }
 
 .panel {
   border: 2px solid #000;
   border-radius: 2px;
   background: #fff;
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   box-shadow: 4px 4px 0 #000;
   position: relative;
+  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+}
+
+.panel:hover {
+  transform: translate(-2px, -2px) rotate(0.2deg);
+  box-shadow: 7px 7px 0 #000;
+  filter: saturate(1.05);
 }
 
 /* Minimize white by coloring panels */
@@ -115,12 +171,13 @@
 
 .panel h2 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1rem;
   color: #000;
   font-weight: 700;
   text-transform: none;
   border-bottom: 2px solid rgba(0,0,0,0.1);
   padding-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .doodle-star-panel {
@@ -156,7 +213,7 @@
   border-radius: 12px;
   padding: 6px 14px;
   cursor: pointer;
-  font-size: 1.1rem;
+  font-size: 0.96rem;
   font-family: 'Gochi Hand', cursive;
   font-weight: 600;
   transition: all 0.2s;
@@ -180,10 +237,30 @@
   border: 2px solid #000;
   border-radius: 8px;
   color: #000;
-  padding: 10px 12px;
+  padding: 8px 10px;
   font: inherit;
-  font-size: 1.1rem;
+  font-size: 0.98rem;
   box-shadow: inset 2px 2px 0 rgba(0,0,0,0.05);
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.panel input:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 rgba(0,0,0,0.2), inset 2px 2px 0 rgba(0,0,0,0.05);
+  background: #fffdf5;
+}
+
+.linkedin-import-panel {
+  max-height: 34vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.linkedin-steps {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 0.95rem;
+  line-height: 1.25;
 }
 
 .panel input:focus {
@@ -201,9 +278,9 @@
   border-radius: 8px;
   background: #fff;
   color: #000;
-  padding: 12px;
+  padding: 8px 10px;
   cursor: pointer;
-  font-size: 1.1rem;
+  font-size: 0.96rem;
   font-family: 'Gochi Hand', cursive;
   font-weight: 700;
   transition: all 0.2s;
@@ -226,9 +303,9 @@
   border-radius: 8px;
   background: #fff;
   color: #000;
-  padding: 10px;
+  padding: 8px;
   cursor: pointer;
-  font-size: 1.1rem;
+  font-size: 0.96rem;
   font-family: 'Gochi Hand', cursive;
   font-weight: 700;
   transition: all 0.2s;
@@ -280,6 +357,37 @@
   z-index: 1;
 }
 
+.graph-floating-controls {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 50;
+  display: flex;
+  gap: 6px;
+}
+
+.graph-floating-controls button {
+  border: 2px solid #000;
+  background: #fffef0;
+  color: #000;
+  border-radius: 10px;
+  min-width: 36px;
+  height: 34px;
+  padding: 4px 10px;
+  font-family: 'Gochi Hand', cursive;
+  font-size: 0.98rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 #000;
+  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.graph-floating-controls button:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 #000;
+  background: #fff9c4;
+}
+
 .doodle-squiggle-graph {
   position: absolute;
   top: 20px;
@@ -297,12 +405,34 @@
 
 .node-group {
   cursor: pointer;
+  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1), filter 260ms ease;
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform, filter;
+}
+
+.node-group:hover {
+  transform: scale(1.045);
+  filter: brightness(1.04);
+}
+
+.node-group:active {
+  transform: scale(0.985);
+}
+
+.graph-link-line {
+  stroke: #000;
+  stroke-width: 2;
+  stroke-dasharray: 5 8;
+  opacity: 0.42;
+  animation: link-drift 2.2s linear infinite;
 }
 
 .node-glow {
   fill: #fffef0;
   stroke-width: 3px;
   filter: drop-shadow(4px 4px 0 rgba(0,0,0,0.1));
+  transition: stroke-width 260ms ease, filter 260ms ease, fill 260ms ease;
 }
 
 .account-node {
@@ -310,13 +440,19 @@
   stroke: #000;
   stroke-width: 3px;
   box-shadow: 5px 5px 0 var(--crayon-yellow);
+  transition: stroke-width 260ms ease, fill 260ms ease, filter 260ms ease;
 }
 
 .node-label {
   fill: #000;
   font-family: 'Gochi Hand', cursive;
-  font-size: 1.2rem;
+  font-size: 0.84rem;
   font-weight: 700;
+  pointer-events: none;
+}
+
+.node-label-center {
+  dominant-baseline: middle;
 }
 
 .group-bubble {
@@ -326,43 +462,113 @@
 }
 
 .group-label {
-  font-size: 1.1rem;
+  font-size: 0.8rem;
 }
 
 .group-count {
-  font-size: 0.9rem;
+  font-size: 0.68rem;
   fill: #666;
+}
+
+.chaos-sway-0 {
+  animation: chaos-sway-a 2.4s ease-in-out infinite alternate;
+}
+
+.chaos-sway-1 {
+  animation: chaos-sway-b 2.8s ease-in-out infinite alternate;
+}
+
+.chaos-sway-2 {
+  animation: chaos-sway-c 2.1s ease-in-out infinite alternate;
+}
+
+@keyframes chaos-sway-a {
+  0% { transform: translate(-1px, 1px) rotate(-0.6deg); }
+  100% { transform: translate(1px, -1px) rotate(0.6deg); }
+}
+
+@keyframes chaos-sway-b {
+  0% { transform: translate(1px, 0px) rotate(0.45deg); }
+  100% { transform: translate(-1px, 1px) rotate(-0.45deg); }
+}
+
+@keyframes chaos-sway-c {
+  0% { transform: translate(0px, -1px) rotate(0.5deg); }
+  100% { transform: translate(1px, 1px) rotate(-0.5deg); }
+}
+
+@keyframes link-drift {
+  to { stroke-dashoffset: -26; }
 }
 
 .node-popup {
   position: absolute;
-  left: 20px;
-  top: 20px;
-  width: 320px;
+  width: min(360px, calc(100% - 24px));
+  aspect-ratio: 4 / 5;
+  max-height: 78vh;
   background: #fffef0;
   border: 3px solid #000;
   border-radius: 4px;
-  padding: 24px;
+  padding: 14px;
   box-shadow: 8px 8px 0 var(--crayon-blue);
   z-index: 100;
   font-family: 'Gochi Hand', cursive;
   transform: rotate(1deg);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #00000099 #0000;
 }
 
 .node-popup h3 {
-  font-size: 1.8rem;
+  font-size: 1.25rem;
   margin: 0;
   color: #000;
+}
+
+.node-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  position: relative;
+  padding-bottom: 6px;
+}
+
+.node-popup::before {
+  content: "";
+  position: absolute;
+  left: -16px;
+  top: 22px;
+  width: 14px;
+  height: 14px;
+  background: #fffef0;
+  border-left: 3px solid #000;
+  border-bottom: 3px solid #000;
+  transform: rotate(45deg);
+}
+
+.node-popup::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  top: -18px;
+  width: 48px;
+  height: 20px;
+  border-top: 3px dashed #000;
+  transform: rotate(8deg);
+  opacity: 0.75;
 }
 
 .node-popup-header button {
   background: var(--crayon-red);
   color: #fff;
   border: 2px solid #000;
-  padding: 4px 12px;
+  padding: 4px 10px;
   border-radius: 4px;
   font-family: 'Gochi Hand', cursive;
   cursor: pointer;
+  margin-left: auto;
 }
 
 .node-popup-grid input,
@@ -372,7 +578,7 @@
   border-radius: 8px;
   padding: 8px;
   font-family: 'Gochi Hand', cursive;
-  font-size: 1.1rem;
+  font-size: 0.96rem;
   width: 100%;
 }
 
@@ -383,7 +589,7 @@
   padding: 10px 20px;
   border-radius: 8px;
   font-family: 'Gochi Hand', cursive;
-  font-size: 1.2rem;
+  font-size: 0.96rem;
   font-weight: 700;
   cursor: pointer;
   box-shadow: 4px 4px 0 #000;
@@ -395,16 +601,47 @@
 }
 
 .chatbot-fab {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 220;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
   background: var(--crayon-yellow);
   border: 3px solid #000;
   box-shadow: 5px 5px 0 #000;
+  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+}
+
+.chatbot-fab:hover {
+  transform: translate(-2px, -2px) scale(1.06);
+  box-shadow: 8px 8px 0 #000;
+  filter: saturate(1.08);
 }
 
 .chatbot-panel {
+  position: fixed;
+  right: 16px;
+  bottom: 78px;
+  z-index: 219;
+  width: min(460px, calc(100vw - 24px));
+  max-height: min(640px, calc(100vh - 100px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: #fffef0;
   border: 3px solid #000;
   box-shadow: 8px 8px 0 var(--crayon-blue);
   font-family: 'Gochi Hand', cursive;
+  transition: transform 220ms ease, box-shadow 220ms ease, filter 220ms ease;
+  animation: chatbot-pop-in 280ms cubic-bezier(0.22, 1, 0.36, 1), chatbot-float 3.8s ease-in-out infinite 300ms;
+}
+
+.chatbot-panel:hover {
+  transform: translate(-3px, -3px) scale(1.01);
+  box-shadow: 12px 12px 0 var(--crayon-blue);
+  filter: saturate(1.08);
 }
 
 .chatbot-title {
@@ -413,7 +650,7 @@
 }
 
 .chatbot-text {
-  font-size: 1.1rem;
+  font-size: 0.92rem;
   border: 2px solid #000;
   border-radius: 12px;
 }
@@ -429,12 +666,79 @@
 .chatbot-input {
   border: 2px solid #000;
   border-radius: 12px;
-  font-size: 1.1rem;
+  font-size: 0.94rem;
+}
+
+.chatbot-messages {
+  overflow-y: auto;
+}
+
+@media (max-width: 1180px) {
+  .app-shell {
+    grid-template-columns: minmax(220px, 36vw) 1fr;
+  }
+
+  .node-popup {
+    transform: rotate(0.4deg);
+  }
+}
+
+@media (max-width: 920px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .left-pane {
+    max-height: 40vh;
+  }
+
+  .graph-pane {
+    min-height: 60vh;
+  }
+
+  .node-popup {
+    width: calc(100% - 20px);
+  }
+
+  .node-popup::before,
+  .node-popup::after {
+    display: none;
+  }
+
+  .chatbot-fab {
+    right: 10px;
+    bottom: 10px;
+  }
+
+  .chatbot-panel {
+    right: 10px;
+    bottom: 72px;
+    width: min(96vw, 440px);
+    max-height: 72vh;
+  }
 }
 
 .chatbot-send {
   background: var(--crayon-red);
   border: 2px solid #000;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.chatbot-send:hover {
+  transform: translate(-2px, -2px) scale(1.03);
+  box-shadow: 6px 6px 0 #000;
+}
+
+@keyframes chatbot-pop-in {
+  0% { opacity: 0; transform: translate(10px, 14px) scale(0.94) rotate(-0.4deg); }
+  100% { opacity: 1; transform: translate(0, 0) scale(1) rotate(0deg); }
+}
+
+@keyframes chatbot-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
 }
 
 /* ── Login page ─────────────────────────────────────────────────────────── */

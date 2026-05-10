@@ -8,7 +8,6 @@ import {
 } from 'd3-force'
 import type { SimulationNodeDatum } from 'd3-force'
 import {
-  ACCOUNT_NAME,
   ACCOUNT_PHOTO,
   RELATIONSHIP_COLORS,
   RELATIONSHIP_ORDER,
@@ -28,6 +27,7 @@ type GraphViewProps = {
   activeGroup: string
   /** All known group names (including standalone groups with no members yet) */
   allGroups: string[]
+  autoOpenNodeId?: string | null
   onActiveGroupChange: (group: string) => void
   onSelectNode: (nodeId: string) => void
   onUpdateNode: (
@@ -48,6 +48,7 @@ export function GraphView({
   selectedNode,
   activeGroup,
   allGroups,
+  autoOpenNodeId,
   onActiveGroupChange,
   onSelectNode,
   onUpdateNode,
@@ -90,6 +91,7 @@ export function GraphView({
   const panStartRef = useRef<{ mx: number; my: number; px: number; py: number } | null>(null)
   const didPanRef = useRef(false)
   const zoomRef = useRef(zoom)
+  const groupColorMapRef = useRef<Record<string, string>>({})
   const nodeDragRef = useRef<{
     nodeId: string
     startWorldX: number
@@ -99,12 +101,49 @@ export function GraphView({
     moved: boolean
   } | null>(null)
   const nodeDragMovedRef = useRef(false)
+  const hasAutoFramedRef = useRef(false)
   // whether we are currently in the person view (captured at drag-start)
   const dragIsPersonViewRef = useRef(false)
 
   const focusedGroup = activeGroup === 'all' ? null : activeGroup
 
   useEffect(() => { zoomRef.current = zoom }, [zoom])
+
+  const groupColor = (group: string) => {
+    const existing = groupColorMapRef.current[group]
+    if (existing) return existing
+
+    const usedHues = Object.values(groupColorMapRef.current)
+      .map((c) => {
+        const m = c.match(/hsl\(([\d.]+)\s/)
+        return m ? Number(m[1]) : null
+      })
+      .filter((h): h is number => h != null)
+
+    // Create a random hue and keep enough distance from existing hues
+    let hue = Math.floor(Math.random() * 360)
+    for (let i = 0; i < 30; i += 1) {
+      const tooClose = usedHues.some((h) => {
+        const diff = Math.abs(h - hue)
+        const wrapped = Math.min(diff, 360 - diff)
+        return wrapped < 34
+      })
+      if (!tooClose) break
+      hue = (hue + 37 + Math.floor(Math.random() * 41)) % 360
+    }
+
+    const color = `hsl(${hue} 85% 82%)`
+    groupColorMapRef.current[group] = color
+    return color
+  }
+
+  useEffect(() => {
+    if (!graphSize.width || !graphSize.height || hasAutoFramedRef.current) return
+    const baseZoom = focusedGroup ? 0.94 : 0.88
+    setZoom(baseZoom)
+    setPan({ x: 0, y: -Math.min(26, graphSize.height * 0.04) })
+    hasAutoFramedRef.current = true
+  }, [focusedGroup, graphSize.width, graphSize.height])
 
   // ── ResizeObserver ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -282,6 +321,15 @@ export function GraphView({
     })
   }
 
+  useEffect(() => {
+    if (!autoOpenNodeId) return
+    const target = visibleNodes.find((n) => n.id === autoOpenNodeId)
+    if (!target) return
+    onSelectNode(target.id)
+    if (editingPersonId !== target.id) beginEditing(target)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpenNodeId, visibleNodes])
+
   const saveEdit = () => {
     if (!editingPersonId) return
     onUpdateNode(editingPersonId, {
@@ -386,6 +434,16 @@ export function GraphView({
   // ── Mouse wheel zoom ──────────────────────────────────────────────────────
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault()
+    // Trackpad two-finger scroll should pan, not zoom.
+    // Zoom only when the user explicitly holds Ctrl/Cmd.
+    if (!(e.ctrlKey || e.metaKey)) {
+      setPan((p) => ({
+        x: p.x - e.deltaX,
+        y: p.y - e.deltaY,
+      }))
+      return
+    }
+
     const rect = graphPaneRef.current?.getBoundingClientRect()
     if (!rect) return
     const mx = e.clientX - rect.left
@@ -428,10 +486,27 @@ export function GraphView({
   // ── Zoom buttons ──────────────────────────────────────────────────────────
   const zoomIn = () => setZoom((z) => Math.min(4, +(z * 1.25).toFixed(4)))
   const zoomOut = () => setZoom((z) => Math.max(0.2, +(z / 1.25).toFixed(4)))
-  const zoomReset = () => { setZoom(1); setPan({ x: 0, y: 0 }) }
+  const zoomReset = () => {
+    const baseZoom = focusedGroup ? 0.94 : 0.88
+    setZoom(baseZoom)
+    setPan({ x: 0, y: -Math.min(26, graphSize.height * 0.04) })
+  }
 
   const ready = graphSize.width > 0 && graphSize.height > 0
   const innerTransform = `translate(${cx + pan.x} ${cy + pan.y}) scale(${zoom}) translate(${-cx} ${-cy})`
+  const editingPersonPos = editingPersonId ? personPositions[editingPersonId] : null
+  const popupStyle = useMemo(() => {
+    if (!editingPersonPos || !ready) return { left: 20, top: 20 }
+    const nodeScreenX = (editingPersonPos.x - cx) * zoom + cx + pan.x
+    const nodeScreenY = (editingPersonPos.y - cy) * zoom + cy + pan.y
+    const popupW = Math.min(320, graphSize.width - 24)
+    const popupH = 410
+    const preferRight = nodeScreenX < graphSize.width * 0.62
+    const rawLeft = preferRight ? nodeScreenX + 56 : nodeScreenX - popupW - 56
+    const left = Math.max(12, Math.min(rawLeft, graphSize.width - popupW - 12))
+    const top = Math.max(12, Math.min(nodeScreenY - popupH * 0.32, graphSize.height - popupH - 12))
+    return { left, top }
+  }, [editingPersonPos, ready, cx, cy, zoom, pan.x, pan.y, graphSize.width, graphSize.height])
 
   return (
     <main
@@ -480,10 +555,7 @@ export function GraphView({
                       <line
                         key={`edge-${node.id}`}
                         x1={cx} y1={cy} x2={pos.x} y2={pos.y}
-                        stroke="#000"
-                        strokeWidth={2}
-                        strokeDasharray="5,5"
-                        opacity={0.4}
+                        className="graph-link-line"
                       />
                     )
                   })
@@ -494,26 +566,41 @@ export function GraphView({
                       <line
                         key={`edge-${item.group}`}
                         x1={cx} y1={cy} x2={pos.x} y2={pos.y}
-                        stroke="#000"
-                        strokeWidth={2}
-                        strokeDasharray="5,5"
-                        opacity={0.4}
+                        className="graph-link-line"
                       />
                     )
                   })}
 
               {/* Center "You" node */}
               <g className="node-group" onClick={backToGroups}>
-                <circle cx={cx} cy={cy} r={36} className="account-node" />
-                <image
-                  href={ACCOUNT_PHOTO}
-                  x={cx - 24} y={cy - 24}
-                  width={48} height={48}
-                  clipPath="circle(24px at center)"
-                />
-                <text x={cx} y={cy + 60} textAnchor="middle" className="node-label">
-                  {ACCOUNT_NAME}
-                </text>
+                {focusedGroup ? (
+                  <>
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r={40}
+                      className="node-glow group-bubble"
+                      style={{ fill: groupColor(focusedGroup) }}
+                    />
+                    <text x={cx} y={cy + 1} textAnchor="middle" className="node-label group-label node-label-center">
+                      {focusedGroup.slice(0, 10)}
+                    </text>
+                  </>
+                ) : (
+                  <>
+                    <circle cx={cx} cy={cy} r={44} className="account-node" />
+                    <image
+                      href={ACCOUNT_PHOTO}
+                      x={cx - 20} y={cy - 20}
+                      width={40}
+                      height={40}
+                      clipPath="circle(20px at center)"
+                    />
+                    <text x={cx} y={cy + 30} textAnchor="middle" className="node-label node-label-center">
+                      you
+                    </text>
+                  </>
+                )}
               </g>
 
               {/* Group or person nodes */}
@@ -525,7 +612,7 @@ export function GraphView({
                     return (
                       <g
                         key={`${node.id}-${focusedGroup}`}
-                        className="node-group person-node-enter"
+                        className={`node-group person-node-enter chaos-sway-${index % 3}`}
                         style={{
                           animationDelay: `${index * 40}ms`,
                           cursor: isDraggingNode && nodeDragRef.current?.nodeId === node.id ? 'grabbing' : 'grab',
@@ -540,7 +627,7 @@ export function GraphView({
                       >
                         <circle
                           cx={pos.x} cy={pos.y}
-                          r={isSelected ? 32 : 28}
+                          r={isSelected ? 38 : 34}
                           className="node-glow"
                           style={{ 
                             stroke: RELATIONSHIP_COLORS[node.relationship],
@@ -549,11 +636,11 @@ export function GraphView({
                         />
                         <image
                           href={node.photo}
-                          x={pos.x - 20} y={pos.y - 20}
-                          width={40} height={40}
-                          clipPath="circle(20px at center)"
+                          x={pos.x - 15} y={pos.y - 15}
+                          width={30} height={30}
+                          clipPath="circle(15px at center)"
                         />
-                        <text x={pos.x} y={pos.y + 44} textAnchor="middle" className="node-label">
+                        <text x={pos.x} y={pos.y + 18} textAnchor="middle" className="node-label node-label-center">
                           {node.name}
                         </text>
                       </g>
@@ -565,7 +652,7 @@ export function GraphView({
                     return (
                       <g
                         key={item.group}
-                        className="node-group group-node"
+                        className="node-group group-node chaos-sway-1"
                         style={{ cursor: isDraggingNode && nodeDragRef.current?.nodeId === item.group ? 'grabbing' : 'grab' }}
                         onMouseDown={(e) => handleNodeMouseDown(e, item.group, pos)}
                         onClick={(e) => {
@@ -574,11 +661,17 @@ export function GraphView({
                           openGroup(item.group)
                         }}
                       >
-                        <circle cx={pos.x} cy={pos.y} r={32} className="node-glow group-bubble" />
-                        <text x={pos.x} y={pos.y + 4} textAnchor="middle" className="node-label group-label">
+                        <circle
+                          cx={pos.x}
+                          cy={pos.y}
+                          r={40}
+                          className="node-glow group-bubble"
+                          style={{ fill: groupColor(item.group) }}
+                        />
+                        <text x={pos.x} y={pos.y - 3} textAnchor="middle" className="node-label group-label node-label-center">
                           {item.group.slice(0, 10)}
                         </text>
-                        <text x={pos.x} y={pos.y + 48} textAnchor="middle" className="node-label group-count">
+                        <text x={pos.x} y={pos.y + 14} textAnchor="middle" className="node-label group-count node-label-center">
                           {item.nodeIds.length} people
                         </text>
                       </g>
@@ -591,7 +684,7 @@ export function GraphView({
 
       {/* Edit popup */}
       {editingPerson ? (
-        <section className="node-popup">
+        <section className="node-popup" style={popupStyle}>
           <div className="node-popup-header">
             <h3>{editingPerson.name}</h3>
             <button type="button" onClick={() => setEditingPersonId(null)}>

@@ -22,6 +22,7 @@ const DoodleLayer = () => (
 )
 
 function App() {
+  const [toasts, setToasts] = useState<Array<{ id: number; text: string }>>([])
   const [authUser, setAuthUser] = useState<AuthUser | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
 
@@ -63,6 +64,14 @@ function App() {
   const [activeGroup, setActiveGroup] = useState('all')
   const [search, setSearch] = useState('')
   const [selectedNodeId, setSelectedNodeId] = useState(initialNodes[0].id)
+  const searchQuery = search.trim().toLowerCase()
+  const pushToast = (text: string) => {
+    const id = Date.now() + Math.floor(Math.random() * 1000)
+    setToasts((current) => [...current, { id, text }])
+    window.setTimeout(() => {
+      setToasts((current) => current.filter((t) => t.id !== id))
+    }, 2800)
+  }
 
   const groups = useMemo(() => {
     const bucket = new Set<string>()
@@ -74,24 +83,43 @@ function App() {
   const addGroup = (name: string) => {
     const normalized = name.trim().toLowerCase()
     if (!normalized) return
+    const exists = standaloneGroups.includes(normalized)
     setStandaloneGroups((current) =>
       current.includes(normalized) ? current : [...current, normalized],
     )
+    if (!exists) pushToast(`Group "${normalized}" added`)
   }
 
   const visibleNodes = useMemo(() => {
-    const q = search.trim().toLowerCase()
     return nodes.filter((node) => {
       const groupOk =
         activeGroup === 'all' || node.groups.some((group) => group.toLowerCase() === activeGroup)
       const searchOk =
-        !q ||
-        node.name.toLowerCase().includes(q) ||
-        node.contact.toLowerCase().includes(q) ||
-        node.notes.toLowerCase().includes(q)
+        !searchQuery ||
+        node.name.toLowerCase().includes(searchQuery) ||
+        node.contact.toLowerCase().includes(searchQuery) ||
+        node.notes.toLowerCase().includes(searchQuery)
       return groupOk && searchOk
     })
-  }, [activeGroup, nodes, search])
+  }, [activeGroup, nodes, searchQuery])
+
+  const searchMatchNode = useMemo(() => {
+    if (!searchQuery) return null
+    return (
+      nodes.find((node) =>
+        node.name.toLowerCase().includes(searchQuery) ||
+        node.contact.toLowerCase().includes(searchQuery) ||
+        node.notes.toLowerCase().includes(searchQuery),
+      ) ?? null
+    )
+  }, [nodes, searchQuery])
+
+  useEffect(() => {
+    if (!searchMatchNode) return
+    const nextGroup = searchMatchNode.groups[0]?.toLowerCase() ?? 'all'
+    if (activeGroup !== nextGroup) setActiveGroup(nextGroup)
+    if (selectedNodeId !== searchMatchNode.id) setSelectedNodeId(searchMatchNode.id)
+  }, [searchMatchNode, activeGroup, selectedNodeId])
 
   const selectedNode = useMemo(
     () => nodes.find((node) => node.id === selectedNodeId) ?? visibleNodes[0] ?? nodes[0] ?? null,
@@ -112,6 +140,7 @@ function App() {
 
     setNodes((current) => [nextNode, ...current])
     setSelectedNodeId(nextNode.id)
+    pushToast(`${nextNode.name} added to your network`)
   }
 
   const updateNode = (
@@ -160,6 +189,14 @@ function App() {
   return (
     <div className="app-shell">
       <DoodleLayer />
+      <div className="toast-stack" aria-live="polite" aria-atomic="true">
+        {toasts.map((toast) => (
+          <div key={toast.id} className="doodle-toast" role="status">
+            <span className="doodle-toast-pin" aria-hidden="true">★</span>
+            {toast.text}
+          </div>
+        ))}
+      </div>
       <Sidebar
         authUser={authUser}
         nodesCount={nodes.length}
@@ -178,6 +215,7 @@ function App() {
         selectedNode={selectedNode}
         activeGroup={activeGroup}
         allGroups={allGroups}
+        autoOpenNodeId={searchQuery ? searchMatchNode?.id ?? null : null}
         onActiveGroupChange={setActiveGroup}
         onSelectNode={setSelectedNodeId}
         onUpdateNode={updateNode}
