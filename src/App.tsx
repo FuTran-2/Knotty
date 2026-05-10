@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import './App.css'
+import { ChatBot } from './components/ChatBot'
 import { GraphView } from './components/GraphView'
 import { Sidebar } from './components/Sidebar'
 import { parseLinkedInConnectionsCsv } from './lib/csv'
@@ -88,6 +89,11 @@ function App() {
     )
   }
 
+  const deleteNode = (nodeId: string) => {
+    setNodes((current) => current.filter((node) => node.id !== nodeId))
+    setSelectedNodeId((current) => (current === nodeId ? (nodes[0]?.id ?? '') : current))
+  }
+
   const importLinkedInCsv = async (file: File) => {
     const text = await file.text()
     const imported = parseLinkedInConnectionsCsv(text)
@@ -97,6 +103,9 @@ function App() {
       setSelectedNodeId(imported[0].id)
     }
   }
+
+  // groups without the leading 'all' sentinel, for chatbot and add-user forms
+  const allGroups = useMemo(() => groups.filter((g) => g !== 'all'), [groups])
 
   return (
     <div className="app-shell">
@@ -120,7 +129,9 @@ function App() {
         onSelectNode={setSelectedNodeId}
         onUpdateRelationship={updateRelationship}
         onUpdateNode={updateNode}
+        onDeleteNode={deleteNode}
       />
+      <ChatBot allGroups={allGroups} onAddNode={onAddNode} />
     </div>
   )
 }

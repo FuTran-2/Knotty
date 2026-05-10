@@ -23,6 +23,7 @@ type GraphViewProps = {
     nodeId: string,
     patch: Partial<Pick<PersonNode, 'name' | 'contact' | 'notes' | 'relationship' | 'groups'>>,
   ) => void
+  onDeleteNode: (nodeId: string) => void
 }
 
 export function GraphView({
@@ -35,9 +36,21 @@ export function GraphView({
   onSelectNode,
   onUpdateRelationship,
   onUpdateNode,
+  onDeleteNode,
 }: GraphViewProps) {
-  const [graphSize, setGraphSize] = useState({ width: 800, height: 680 })
-  const [camera, setCamera] = useState({ x: 0, y: 0, scale: 1, active: false })
+  // ── Measured canvas size ──────────────────────────────────────────────────
+  const [graphSize, setGraphSize] = useState({ width: 0, height: 0 })
+
+  // ── Viewport: pan (screen-pixel offset) + zoom factor ────────────────────
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [isPanning, setIsPanning] = useState(false)
+  const [isDraggingNode, setIsDraggingNode] = useState(false)
+
+  // ── Per-node dragged positions (world coords, override computed layout) ───
+  const [nodeOverrides, setNodeOverrides] = useState<Record<string, Position>>({})
+
+  // ── Edit popup ────────────────────────────────────────────────────────────
   const [editingPersonId, setEditingPersonId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState({
     name: '',
@@ -48,48 +61,82 @@ export function GraphView({
   })
 
   const graphPaneRef = useRef<HTMLDivElement | null>(null)
-  const zoomTimeout = useRef<number | null>(null)
+  // tracks pan-drag start state
+  const panStartRef = useRef<{ mx: number; my: number; px: number; py: number } | null>(null)
+  // suppress click after a pan drag
+  const didPanRef = useRef(false)
+  // zoom ref so node-drag closure always reads the current value
+  const zoomRef = useRef(zoom)
+  // node drag state ref
+  const nodeDragRef = useRef<{
+    nodeId: string
+    startWorldX: number
+    startWorldY: number
+    startMx: number
+    startMy: number
+    moved: boolean
+  } | null>(null)
+  // suppress click on node after it was dragged
+  const nodeDragMovedRef = useRef(false)
+
   const focusedGroup = activeGroup === 'all' ? null : activeGroup
 
+  // keep zoomRef in sync so drag closures see the latest zoom
+  useEffect(() => { zoomRef.current = zoom }, [zoom])
+
+  // Reset node overrides whenever the focused group changes
+  useEffect(() => { setNodeOverrides({}) }, [focusedGroup])
+
+  // ── ResizeObserver: measure pane and update graphSize ─────────────────────
   useEffect(() => {
     const pane = graphPaneRef.current
     if (!pane) return
-
     const observer = new ResizeObserver((entries) => {
-      const size = entries[0].contentRect
-      setGraphSize({ width: size.width, height: size.height })
+      const { width, height } = entries[0].contentRect
+      setGraphSize({ width, height })
     })
-
     observer.observe(pane)
     return () => observer.disconnect()
   }, [])
 
-  useEffect(
-    () => () => {
-      if (zoomTimeout.current) {
-        window.clearTimeout(zoomTimeout.current)
+  // ── Keyboard shortcuts: Ctrl/Cmd +  -  0 ─────────────────────────────────
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault()
+        setZoom((z) => Math.min(4, +(z * 1.2).toFixed(4)))
+      } else if (e.key === '-') {
+        e.preventDefault()
+        setZoom((z) => Math.max(0.2, +(z / 1.2).toFixed(4)))
+      } else if (e.key === '0') {
+        e.preventDefault()
+        setZoom(1)
+        setPan({ x: 0, y: 0 })
       }
-    },
-    [],
-  )
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
+  // ── Derived data ──────────────────────────────────────────────────────────
   const groups = useMemo(() => {
-    const grouped: Record<string, string[]> = {}
+    const bucket: Record<string, string[]> = {}
     visibleNodes.forEach((node) => {
-      node.groups.forEach((group) => {
-        const key = group.toLowerCase()
-        grouped[key] = grouped[key] ?? []
-        grouped[key].push(node.id)
+      node.groups.forEach((g) => {
+        const key = g.toLowerCase()
+        bucket[key] = bucket[key] ?? []
+        bucket[key].push(node.id)
       })
     })
-    return Object.entries(grouped)
+    return Object.entries(bucket)
       .map(([group, nodeIds]) => ({ group, nodeIds }))
       .sort((a, b) => b.nodeIds.length - a.nodeIds.length)
   }, [visibleNodes])
 
   const memberNodes = useMemo(() => {
     if (!focusedGroup) return []
-    return visibleNodes.filter((node) => node.groups.some((group) => group.toLowerCase() === focusedGroup))
+    return visibleNodes.filter((n) => n.groups.some((g) => g.toLowerCase() === focusedGroup))
   }, [focusedGroup, visibleNodes])
 
   const displayedNodes = useMemo(
@@ -97,62 +144,59 @@ export function GraphView({
     [focusedGroup, memberNodes],
   )
 
-  const groupPositions = useMemo(() => {
-    const centerX = graphSize.width / 2
-    const centerY = graphSize.height / 2
+  // ── Node positions in world coordinates ──────────────────────────────────
+  const cx = graphSize.width / 2
+  const cy = graphSize.height / 2
+
+  const groupPositions = useMemo<Record<string, Position>>(() => {
+    if (!graphSize.width) return {}
     const radius = Math.min(graphSize.width, graphSize.height) * 0.28
     const positions: Record<string, Position> = {}
-    groups.forEach((item, index) => {
-      const angle = (index / Math.max(groups.length, 1)) * Math.PI * 2 - Math.PI / 2
+    groups.forEach((item, i) => {
+      const angle = (i / Math.max(groups.length, 1)) * Math.PI * 2 - Math.PI / 2
       positions[item.group] = {
-        x: centerX + Math.cos(angle) * radius,
-        y: centerY + Math.sin(angle) * radius,
+        x: cx + Math.cos(angle) * radius,
+        y: cy + Math.sin(angle) * radius,
       }
     })
     return positions
-  }, [graphSize.height, graphSize.width, groups])
+  }, [cx, cy, graphSize.width, graphSize.height, groups])
 
-  const personPositions = useMemo(() => {
-    const centerX = graphSize.width / 2
-    const centerY = graphSize.height / 2
+  const personPositions = useMemo<Record<string, Position>>(() => {
+    if (!graphSize.width) return {}
     const radius = Math.min(graphSize.width, graphSize.height) * 0.3
     const positions: Record<string, Position> = {}
-    displayedNodes.forEach((node, index) => {
-      const angle = (index / Math.max(displayedNodes.length, 1)) * Math.PI * 2 - Math.PI / 2
+    displayedNodes.forEach((node, i) => {
+      const angle = (i / Math.max(displayedNodes.length, 1)) * Math.PI * 2 - Math.PI / 2
       positions[node.id] = {
-        x: centerX + Math.cos(angle) * radius,
-        y: centerY + Math.sin(angle) * radius,
+        x: cx + Math.cos(angle) * radius,
+        y: cy + Math.sin(angle) * radius,
       }
     })
     return positions
-  }, [displayedNodes, graphSize.height, graphSize.width])
+  }, [displayedNodes, cx, cy, graphSize.width, graphSize.height])
 
-  const ringCenter = selectedNode ? personPositions[selectedNode.id] : undefined
+  // ── World → screen coordinate transform ──────────────────────────────────
+  // Inner <g> uses: translate(cx+panX, cy+panY) scale(zoom) translate(-cx, -cy)
+  // So: screen = (cx + panX) + (world - cx) * zoom
+  const toScreen = (world: Position): Position => ({
+    x: cx + pan.x + (world.x - cx) * zoom,
+    y: cy + pan.y + (world.y - cy) * zoom,
+  })
+
+  const ringWorldPos = selectedNode
+    ? (nodeOverrides[selectedNode.id] ?? personPositions[selectedNode.id])
+    : undefined
+  const ringScreenPos = ringWorldPos ? toScreen(ringWorldPos) : undefined
+
   const editingPerson = useMemo(
-    () => visibleNodes.find((node) => node.id === editingPersonId) ?? null,
+    () => visibleNodes.find((n) => n.id === editingPersonId) ?? null,
     [editingPersonId, visibleNodes],
   )
 
-  const startGroupZoom = (group: string) => {
-    const target = groupPositions[group]
-    if (!target) return
-
-    const centerX = graphSize.width / 2
-    const centerY = graphSize.height / 2
-
-    setCamera({
-      x: centerX - target.x,
-      y: centerY - target.y,
-      scale: 1.65,
-      active: true,
-    })
-
-    if (zoomTimeout.current) window.clearTimeout(zoomTimeout.current)
-    zoomTimeout.current = window.setTimeout(() => {
-      onActiveGroupChange(group)
-      setCamera({ x: 0, y: 0, scale: 1, active: false })
-      zoomTimeout.current = null
-    }, 360)
+  // ── Group navigation ──────────────────────────────────────────────────────
+  const openGroup = (group: string) => {
+    onActiveGroupChange(group)
   }
 
   const backToGroups = () => {
@@ -160,7 +204,8 @@ export function GraphView({
     setEditingPersonId(null)
   }
 
-  const beginEditingPerson = (node: PersonNode) => {
+  // ── Edit popup helpers ────────────────────────────────────────────────────
+  const beginEditing = (node: PersonNode) => {
     setEditingPersonId(node.id)
     setEditDraft({
       name: node.name,
@@ -171,7 +216,7 @@ export function GraphView({
     })
   }
 
-  const savePersonEdit = () => {
+  const saveEdit = () => {
     if (!editingPersonId) return
     onUpdateNode(editingPersonId, {
       name: editDraft.name.trim(),
@@ -180,21 +225,142 @@ export function GraphView({
       relationship: normalizeRelationship(editDraft.relationship),
       groups: editDraft.groups
         .split(',')
-        .map((group) => group.trim().toLowerCase())
+        .map((g) => g.trim().toLowerCase())
         .filter(Boolean),
     })
     setEditingPersonId(null)
   }
 
+  // ── Node drag ─────────────────────────────────────────────────────────────
+  // worldPos: current world position of the node being pressed
+  const handleNodeMouseDown = (
+    e: React.MouseEvent,
+    nodeId: string,
+    worldPos: Position,
+  ) => {
+    e.stopPropagation() // prevent background pan from activating
+    if (e.button !== 0) return
+
+    nodeDragMovedRef.current = false
+    nodeDragRef.current = {
+      nodeId,
+      startWorldX: worldPos.x,
+      startWorldY: worldPos.y,
+      startMx: e.clientX,
+      startMy: e.clientY,
+      moved: false,
+    }
+
+    const onMove = (ev: MouseEvent) => {
+      const drag = nodeDragRef.current
+      if (!drag) return
+      const dx = ev.clientX - drag.startMx
+      const dy = ev.clientY - drag.startMy
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        drag.moved = true
+        nodeDragMovedRef.current = true
+        setIsDraggingNode(true)
+      }
+      // Convert screen-pixel delta → world-coordinate delta (account for zoom)
+      setNodeOverrides((prev) => ({
+        ...prev,
+        [drag.nodeId]: {
+          x: drag.startWorldX + dx / zoomRef.current,
+          y: drag.startWorldY + dy / zoomRef.current,
+        },
+      }))
+    }
+
+    const onUp = () => {
+      nodeDragRef.current = null
+      setIsDraggingNode(false)
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      // Let the click event fire first, then clear the flag
+      setTimeout(() => { nodeDragMovedRef.current = false }, 0)
+    }
+
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  // ── Mouse wheel zoom (zoom centered on cursor position) ───────────────────
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault()
+    const rect = graphPaneRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const mx = e.clientX - rect.left
+    const my = e.clientY - rect.top
+    const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1
+    const newZoom = Math.min(4, Math.max(0.2, zoom * factor))
+    const ratio = newZoom / zoom
+    // Keep world point under cursor fixed
+    setPan((p) => ({
+      x: mx - cx - (mx - cx - p.x) * ratio,
+      y: my - cy - (my - cy - p.y) * ratio,
+    }))
+    setZoom(newZoom)
+  }
+
+  // ── Background pan drag ───────────────────────────────────────────────────
+  const handleBgMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return
+    didPanRef.current = false
+    panStartRef.current = { mx: e.clientX, my: e.clientY, px: pan.x, py: pan.y }
+    setIsPanning(true)
+
+    const onMove = (ev: MouseEvent) => {
+      if (!panStartRef.current) return
+      const dx = ev.clientX - panStartRef.current.mx
+      const dy = ev.clientY - panStartRef.current.my
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didPanRef.current = true
+      setPan({ x: panStartRef.current.px + dx, y: panStartRef.current.py + dy })
+    }
+    const onUp = () => {
+      panStartRef.current = null
+      setIsPanning(false)
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  // ── Zoom buttons ──────────────────────────────────────────────────────────
+  const zoomIn = () => setZoom((z) => Math.min(4, +(z * 1.25).toFixed(4)))
+  const zoomOut = () => setZoom((z) => Math.max(0.2, +(z / 1.25).toFixed(4)))
+  const zoomReset = () => { setZoom(1); setPan({ x: 0, y: 0 }) }
+
+  // ── Don't render graph until pane is measured ─────────────────────────────
+  const ready = graphSize.width > 0 && graphSize.height > 0
+
+  // ── Inner group SVG transform ─────────────────────────────────────────────
+  // Applies pan + zoom centered around the canvas center (cx, cy)
+  const innerTransform = `translate(${cx + pan.x} ${cy + pan.y}) scale(${zoom}) translate(${-cx} ${-cy})`
+
   return (
-    <main className="graph-pane" ref={graphPaneRef}>
+    <main
+      className={`graph-pane${isPanning ? ' is-panning' : ''}${isDraggingNode ? ' is-node-dragging' : ''}`}
+      ref={graphPaneRef}
+      onWheel={handleWheel}
+    >
+      {/* Floating controls */}
+      <div className="graph-floating-controls">
+        {focusedGroup && (
+          <button type="button" onClick={backToGroups} title="Back to groups">
+            ← Back
+          </button>
+        )}
+        <button type="button" onClick={zoomOut} title="Zoom out (Ctrl -)">−</button>
+        <button type="button" onClick={zoomReset} title="Reset zoom (Ctrl 0)">
+          {Math.round(zoom * 100)}%
+        </button>
+        <button type="button" onClick={zoomIn} title="Zoom in (Ctrl +)">+</button>
+      </div>
+
+      {/* Relationship filter strip */}
       <div className="graph-toolbar">
         <div className="relationship-tabs">
-          {focusedGroup ? (
-            <button type="button" onClick={backToGroups}>
-              Back
-            </button>
-          ) : null}
           <button
             type="button"
             className={relationshipFilter === 'all' ? 'active' : ''}
@@ -218,131 +384,145 @@ export function GraphView({
         </span>
       </div>
 
-      <div
-        className={`graph-stage ${camera.active ? 'zooming' : ''}`}
-        style={{ transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.scale})` }}
+      {/* SVG graph canvas */}
+      <svg
+        className={`graph-canvas${isPanning ? ' panning' : ''}`}
+        onMouseDown={handleBgMouseDown}
       >
-        <svg viewBox={`0 0 ${graphSize.width} ${graphSize.height}`} className="graph-canvas">
-        <defs>
-          <radialGradient id="bg-glow" cx="50%" cy="50%">
-            <stop offset="0%" stopColor="#c7d2fe" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-          </radialGradient>
-        </defs>
-        <rect width={graphSize.width} height={graphSize.height} fill="url(#bg-glow)" />
+        {ready && (
+          <>
+            <defs>
+              <radialGradient id="bg-glow" cx="50%" cy="50%">
+                <stop offset="0%" stopColor="#c7d2fe" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+              </radialGradient>
+            </defs>
 
-        {focusedGroup
-          ? displayedNodes.map((node) => {
-              const pos = personPositions[node.id]
-              if (!pos) return null
-              return (
-                <line
-                  key={`account-${node.id}`}
-                  x1={graphSize.width / 2}
-                  y1={graphSize.height / 2}
-                  x2={pos.x}
-                  y2={pos.y}
-                  stroke="rgba(148, 163, 184, 0.35)"
-                  strokeWidth={1.3}
+            {/* Static background glow — not affected by pan/zoom */}
+            <rect width={graphSize.width} height={graphSize.height} fill="url(#bg-glow)" />
+
+            {/* All graph content inside the pan/zoom group */}
+            <g transform={innerTransform}>
+              {/* Edges — follow overridden positions */}
+              {focusedGroup
+                ? displayedNodes.map((node) => {
+                    const pos = nodeOverrides[node.id] ?? personPositions[node.id]
+                    if (!pos) return null
+                    return (
+                      <line
+                        key={`edge-${node.id}`}
+                        x1={cx} y1={cy} x2={pos.x} y2={pos.y}
+                        stroke="rgba(148, 163, 184, 0.35)"
+                        strokeWidth={1.3}
+                      />
+                    )
+                  })
+                : groups.map((item) => {
+                    const pos = nodeOverrides[item.group] ?? groupPositions[item.group]
+                    if (!pos) return null
+                    return (
+                      <line
+                        key={`edge-${item.group}`}
+                        x1={cx} y1={cy} x2={pos.x} y2={pos.y}
+                        stroke="rgba(148, 163, 184, 0.35)"
+                        strokeWidth={1.3}
+                      />
+                    )
+                  })}
+
+              {/* Center "You" node */}
+              <g className="node-group" onClick={backToGroups}>
+                <circle cx={cx} cy={cy} r={32} className="account-node" />
+                <image
+                  href={ACCOUNT_PHOTO}
+                  x={cx - 20} y={cy - 20}
+                  width={40} height={40}
+                  clipPath="circle(20px at center)"
                 />
-              )
-            })
-          : groups.map((item) => {
-              const pos = groupPositions[item.group]
-              if (!pos) return null
-              return (
-                <line
-                  key={`group-${item.group}`}
-                  x1={graphSize.width / 2}
-                  y1={graphSize.height / 2}
-                  x2={pos.x}
-                  y2={pos.y}
-                  stroke="rgba(148, 163, 184, 0.35)"
-                  strokeWidth={1.3}
-                />
-              )
-            })}
+                <text x={cx} y={cy + 52} textAnchor="middle" className="node-label">
+                  {ACCOUNT_NAME}
+                </text>
+              </g>
 
-        <g className="node-group" onClick={backToGroups}>
-          <circle cx={graphSize.width / 2} cy={graphSize.height / 2} r={32} className="account-node" />
-          <image
-            href={ACCOUNT_PHOTO}
-            x={graphSize.width / 2 - 20}
-            y={graphSize.height / 2 - 20}
-            width={40}
-            height={40}
-            clipPath="circle(20px at center)"
-          />
-          <text x={graphSize.width / 2} y={graphSize.height / 2 + 52} textAnchor="middle" className="node-label">
-            {ACCOUNT_NAME}
-          </text>
-        </g>
+              {/* Group or person nodes */}
+              {focusedGroup
+                ? displayedNodes.map((node, index) => {
+                    // Use dragged position if available, else computed layout
+                    const basePos = personPositions[node.id]
+                    if (!basePos) return null
+                    const pos = nodeOverrides[node.id] ?? basePos
+                    const isSelected = node.id === selectedNode?.id
+                    return (
+                      <g
+                        key={`${node.id}-${focusedGroup}`}
+                        className="node-group person-node-enter"
+                        style={{ animationDelay: `${index * 40}ms`, cursor: isDraggingNode && nodeDragRef.current?.nodeId === node.id ? 'grabbing' : 'grab' }}
+                        onMouseDown={(e) => handleNodeMouseDown(e, node.id, pos)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          // Ignore click if the node was dragged
+                          if (nodeDragMovedRef.current || didPanRef.current) return
+                          onSelectNode(node.id)
+                          beginEditing(node)
+                        }}
+                      >
+                        <circle
+                          cx={pos.x} cy={pos.y}
+                          r={isSelected ? 28 : 24}
+                          className="node-glow"
+                          style={{ stroke: RELATIONSHIP_COLORS[node.relationship] }}
+                        />
+                        <image
+                          href={node.photo}
+                          x={pos.x - 18} y={pos.y - 18}
+                          width={36} height={36}
+                          clipPath="circle(18px at center)"
+                        />
+                        <text x={pos.x} y={pos.y + 36} textAnchor="middle" className="node-label">
+                          {node.name}
+                        </text>
+                      </g>
+                    )
+                  })
+                : groups.map((item) => {
+                    const basePos = groupPositions[item.group]
+                    if (!basePos) return null
+                    const pos = nodeOverrides[item.group] ?? basePos
+                    return (
+                      <g
+                        key={item.group}
+                        className="node-group group-node"
+                        style={{ cursor: isDraggingNode && nodeDragRef.current?.nodeId === item.group ? 'grabbing' : 'grab' }}
+                        onMouseDown={(e) => handleNodeMouseDown(e, item.group, pos)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (nodeDragMovedRef.current || didPanRef.current) return
+                          openGroup(item.group)
+                        }}
+                      >
+                        <circle cx={pos.x} cy={pos.y} r={28} className="node-glow group-bubble" />
+                        <text x={pos.x} y={pos.y + 4} textAnchor="middle" className="node-label group-label">
+                          {item.group.slice(0, 8)}
+                        </text>
+                        <text x={pos.x} y={pos.y + 40} textAnchor="middle" className="node-label group-count">
+                          {item.nodeIds.length} people
+                        </text>
+                      </g>
+                    )
+                  })}
+            </g>
+          </>
+        )}
+      </svg>
 
-        {focusedGroup
-          ? displayedNodes.map((node, index) => {
-              const pos = personPositions[node.id]
-              if (!pos) return null
-              const isSelected = node.id === selectedNode?.id
-              return (
-                <g
-                  key={`${node.id}-${focusedGroup}`}
-                  className="node-group person-node-enter"
-                  style={{ animationDelay: `${index * 40}ms` }}
-                  onClick={() => {
-                    onSelectNode(node.id)
-                    beginEditingPerson(node)
-                  }}
-                >
-                  <circle
-                    cx={pos.x}
-                    cy={pos.y}
-                    r={isSelected ? 28 : 24}
-                    className="node-glow"
-                    style={{ stroke: RELATIONSHIP_COLORS[node.relationship] }}
-                  />
-                  <image
-                    href={node.photo}
-                    x={pos.x - 18}
-                    y={pos.y - 18}
-                    width={36}
-                    height={36}
-                    clipPath="circle(18px at center)"
-                  />
-                  <text x={pos.x} y={pos.y + 36} textAnchor="middle" className="node-label">
-                    {node.name}
-                  </text>
-                </g>
-              )
-            })
-          : groups.map((item) => {
-              const pos = groupPositions[item.group]
-              if (!pos) return null
-              return (
-                <g
-                  key={item.group}
-                  className="node-group group-node"
-                  onClick={() => startGroupZoom(item.group)}
-                >
-                  <circle cx={pos.x} cy={pos.y} r={28} className="node-glow group-bubble" />
-                  <text x={pos.x} y={pos.y + 4} textAnchor="middle" className="node-label group-label">
-                    {item.group.slice(0, 8)}
-                  </text>
-                  <text x={pos.x} y={pos.y + 40} textAnchor="middle" className="node-label group-count">
-                    {item.nodeIds.length} people
-                  </text>
-                </g>
-              )
-            })}
-        </svg>
-      </div>
-
-      {selectedNode && ringCenter ? (
-        <div className="ring-selector" style={{ left: ringCenter.x, top: ringCenter.y }}>
+      {/* Relationship ring (HTML overlay, positioned in screen coords) */}
+      {selectedNode && ringScreenPos ? (
+        <div className="ring-selector" style={{ left: ringScreenPos.x, top: ringScreenPos.y }}>
           {RELATIONSHIP_ORDER.map((item, index) => {
             const angle = (index / RELATIONSHIP_ORDER.length) * Math.PI * 2 - Math.PI / 2
-            const radius = 78
-            const x = Math.cos(angle) * radius
-            const y = Math.sin(angle) * radius
+            const r = 78
+            const x = Math.cos(angle) * r
+            const y = Math.sin(angle) * r
             return (
               <button
                 key={item}
@@ -359,6 +539,7 @@ export function GraphView({
         </div>
       ) : null}
 
+      {/* Edit popup */}
       {editingPerson ? (
         <section className="node-popup">
           <div className="node-popup-header">
@@ -372,33 +553,26 @@ export function GraphView({
               Name
               <input
                 value={editDraft.name}
-                onChange={(event) => setEditDraft((current) => ({ ...current, name: event.target.value }))}
+                onChange={(e) => setEditDraft((d) => ({ ...d, name: e.target.value }))}
               />
             </label>
             <label>
               Contact
               <input
                 value={editDraft.contact}
-                onChange={(event) =>
-                  setEditDraft((current) => ({ ...current, contact: event.target.value }))
-                }
+                onChange={(e) => setEditDraft((d) => ({ ...d, contact: e.target.value }))}
               />
             </label>
             <label>
               Relationship
               <select
                 value={editDraft.relationship}
-                onChange={(event) =>
-                  setEditDraft((current) => ({
-                    ...current,
-                    relationship: normalizeRelationship(event.target.value),
-                  }))
+                onChange={(e) =>
+                  setEditDraft((d) => ({ ...d, relationship: normalizeRelationship(e.target.value) }))
                 }
               >
-                {RELATIONSHIP_ORDER.map((relationship) => (
-                  <option key={relationship} value={relationship}>
-                    {relationship}
-                  </option>
+                {RELATIONSHIP_ORDER.map((r) => (
+                  <option key={r} value={r}>{r}</option>
                 ))}
               </select>
             </label>
@@ -406,7 +580,7 @@ export function GraphView({
               Groups
               <input
                 value={editDraft.groups}
-                onChange={(event) => setEditDraft((current) => ({ ...current, groups: event.target.value }))}
+                onChange={(e) => setEditDraft((d) => ({ ...d, groups: e.target.value }))}
               />
             </label>
             <label className="full">
@@ -414,12 +588,22 @@ export function GraphView({
               <textarea
                 rows={3}
                 value={editDraft.notes}
-                onChange={(event) => setEditDraft((current) => ({ ...current, notes: event.target.value }))}
+                onChange={(e) => setEditDraft((d) => ({ ...d, notes: e.target.value }))}
               />
             </label>
           </div>
           <div className="node-popup-actions">
-            <button type="button" onClick={savePersonEdit}>
+            <button
+              type="button"
+              className="danger"
+              onClick={() => {
+                onDeleteNode(editingPersonId!)
+                setEditingPersonId(null)
+              }}
+            >
+              Remove
+            </button>
+            <button type="button" onClick={saveEdit}>
               Save changes
             </button>
           </div>
