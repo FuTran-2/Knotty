@@ -99,15 +99,33 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   return (
     <div className="login-shell">
       <div className="login-chaos-bg" aria-hidden="true">
-        <span className="login-code-smear smear-one">const graph = friends.map((person) =&gt; new Knot(person))</span>
-        <span className="login-code-smear smear-two">while (loading) &#123; untangle(network) &#125;</span>
-        <span className="login-code-smear smear-three">auth.connect(email, password) // still working?</span>
-        <span className="login-code-smear smear-four">throw new Error('too many cool contacts')</span>
+        <span className="login-code-smear smear-one">const graph = new Knot(person)</span>
+        <span className="login-code-smear smear-two">untangle(network)</span>
+        
+        <svg className="login-doodle doodle-star-one" viewBox="0 0 100 100">
+          <path d="M50 5 L63 40 L95 40 L70 60 L80 95 L50 75 L20 95 L30 60 L5 40 L37 40 Z" />
+        </svg>
+        <svg className="login-doodle doodle-arrow-one" viewBox="0 0 100 100">
+          <path d="M10 50 Q 50 10 90 50 M 90 50 L 70 30 M 90 50 L 70 70" />
+        </svg>
+        <svg className="login-doodle doodle-squiggle-one" viewBox="0 0 100 20">
+          <path d="M0 10 Q 10 0, 20 10 T 40 10 T 60 10 T 80 10 T 100 10" />
+        </svg>
+        <svg className="login-doodle doodle-loop-two" viewBox="0 0 100 100">
+          <path d="M10 10 C 90 10, 90 90, 10 90 S 10 10, 90 10" />
+        </svg>
+        <svg className="login-doodle doodle-star-two" viewBox="0 0 100 100">
+          <path d="M50 20 L58 44 L82 44 L62 56 L70 80 L50 64 L30 80 L38 56 L18 44 L42 44 Z" />
+        </svg>
+
+        <div className="login-note-card">
+          <div className="login-note-wire" />
+          <span>STAY</span>
+          <span>KNOTTY</span>
+        </div>
+
         <span className="login-ribbon ribbon-one" />
-        <span className="login-ribbon ribbon-two" />
-        <span className="login-ribbon ribbon-three" />
         <span className="login-loop loop-one" />
-        <span className="login-loop loop-two" />
       </div>
 
       <div className="login-card">

@@ -1056,6 +1056,13 @@
 
 /* ── Login page ─────────────────────────────────────────────────────────── */
 
+:root {
+  --crayon-red: #ff5252;
+  --crayon-blue: #536dfe;
+  --crayon-green: #69f0ae;
+  --crayon-yellow: #ffff8d;
+}
+
 .login-shell {
   position: relative;
   isolation: isolate;
@@ -1063,554 +1070,319 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  /* Deep charcoal base with subtle gold and dark grid/scribble lines */
-  background:
-    repeating-linear-gradient(14deg, rgba(230, 184, 0, 0.05) 0 1px, transparent 1px 72px),
-    repeating-linear-gradient(-23deg, transparent 0 34px, rgba(50, 50, 70, 0.1) 34px 46px, transparent 46px 120px),
-    #1e1e1e; /* Deep charcoal - softer than pure black */
-  padding: clamp(96px, 12vh, 132px) 24px clamp(42px, 8vh, 86px);
+  overflow-x: hidden;
+  /* Long scroll background feel */
+  background: #fdfaf6;
+  padding: 80px 24px;
 }
 
 .login-shell::before {
   content: "";
   position: absolute;
-  inset: -18%;
-  z-index: -2;
-  /* Conic gradients using gold, amber, and deep tones for a technical, glitch pattern */
-  background:
-    conic-gradient(from 40deg at 28% 45%, transparent 0 12%, rgba(230, 184, 0, 0.8) 12% 18%, transparent 18% 33%, rgba(255, 198, 0, 0.6) 33% 39%, transparent 39% 100%),
-    conic-gradient(from -25deg at 72% 55%, transparent 0 9%, rgba(13, 38, 71, 0.6) 9% 13%, transparent 13% 28%, rgba(230, 184, 0, 0.5) 28% 32%, transparent 32% 100%);
-  animation: login-drift 8s ease-in-out infinite alternate;
-}
-
-.login-shell::after {
-  content: "function connect() === nope }   while(prompt) makeGraph();   throw new Error('knotty');   import network from './brain'";
-  position: absolute;
-  inset: -6%;
+  inset: 0;
   z-index: -1;
-  color: rgba(230, 184, 0, 0.08); /* Faint, faded phosphor display gold */
-  font: 700 clamp(1rem, 2.8vw, 2.2rem) "Courier New", monospace;
-  line-height: 2.1;
-  word-spacing: 1.8rem;
-  transform: rotate(14deg);
-  text-transform: lowercase;
-  pointer-events: none;
-  filter: distort(10px);
-}
-
-.login-chaos-bg,
-.login-code-smear,
-.login-ribbon,
-.login-loop {
-  position: absolute;
-  pointer-events: none;
+  /* Paper texture and long vertical lines like a scroll */
+  background-image: 
+    linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px),
+    linear-gradient(rgba(0,0,0,0.02) 1px, transparent 1px);
+  background-size: 40px 100%, 100% 40px;
 }
 
 .login-chaos-bg {
+  position: absolute;
   inset: 0;
   z-index: 0;
+  pointer-events: none;
 }
 
 .login-code-smear {
-  color: rgba(230, 184, 0, 0.8); /* Gold code smear */
-  font: 800 clamp(0.9rem, 1.9vw, 1.5rem) "Courier New", monospace;
+  color: #e0e0e0;
+  font: 700 1rem 'Gochi Hand', cursive;
   white-space: nowrap;
-  text-transform: lowercase;
-  /* Multiply works well for depth here on a light-colored part of a dark base */
-  mix-blend-mode: multiply; 
+  position: absolute;
 }
 
-.smear-one { top: 10%; left: -5%; transform: rotate(-18deg); color: rgba(255, 198, 0, 0.6); } /* Amber */
-.smear-two { top: 72%; left: 9%; transform: rotate(10deg); color: rgba(230, 184, 0, 0.6); } /* Gold */
-.smear-three { top: 20%; right: -11%; transform: rotate(28deg); color: rgba(230, 184, 0, 0.8); } /* Gold */
-.smear-four { bottom: 5%; right: 13%; transform: rotate(-9deg); color: rgba(255, 198, 0, 0.6); } /* Amber */
+.smear-one { top: 12%; left: 8%; transform: rotate(-3deg); }
+.smear-two { bottom: 12%; right: 8%; transform: rotate(3deg); }
 
-.login-ribbon {
-  border: clamp(22px, 3vw, 44px) solid #e6b800; /* Rich Gold */
-  border-left-color: transparent;
-  border-bottom-color: transparent;
-  border-radius: 50%;
-  opacity: 0.85;
+.login-doodle {
+  position: absolute;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.3; /* Subtle doodles */
 }
 
-.ribbon-one {
-  width: 56vw;
-  height: 28vw;
-  left: -8vw;
-  top: 8vh;
-  transform: rotate(-18deg);
+.login-doodle path {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: 
+    draw-doodle 4s ease-out forwards,
+    boil-line 0.4s infinite step-end,
+    continuous-trace 8s linear infinite 4s;
 }
 
-.ribbon-two {
-  width: 50vw;
-  height: 33vw;
-  right: -14vw;
-  top: -4vh;
-  transform: rotate(28deg);
-  border-right-color: transparent;
+@keyframes boil-line {
+  0% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(1px, -1px) scale(1.01); }
+  66% { transform: translate(-1px, 1px) scale(0.99); }
 }
 
-.ribbon-three {
-  width: 72vw;
-  height: 30vw;
-  left: 21vw;
-  bottom: -14vw;
-  transform: rotate(-8deg);
-  border-color: #e6b800; /* Rich Gold */
-  border-left-color: transparent;
+@keyframes continuous-trace {
+  0% { stroke-dashoffset: 0; }
+  50% { stroke-dashoffset: 2000; }
+  100% { stroke-dashoffset: 0; }
 }
 
-.login-loop {
-  border: clamp(8px, 1vw, 16px) solid #e6b800; /* Rich Gold */
-  border-right-color: transparent;
-  border-radius: 50%;
+@keyframes draw-doodle {
+  to { stroke-dashoffset: 0; }
 }
 
-.loop-one {
-  width: 42vw;
-  height: 21vw;
-  right: 8vw;
-  top: 24vh;
-  transform: rotate(16deg);
-  border-color: #e6b800; /* Rich Gold */
-  border-right-color: transparent;
+.login-hosted-submit {
+  background: #fff;
+  color: #1a1a1a;
+  border: 2px solid #000;
+  border-radius: 8px;
+  font: 700 1.2rem 'Gochi Hand', cursive;
+  padding: 14px;
+  cursor: pointer;
+  box-shadow: 6px 6px 0 var(--crayon-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.2s;
 }
 
-.loop-two {
-  width: 38vw;
-  height: 28vw;
-  left: 38vw;
-  bottom: 8vh;
-  transform: rotate(-27deg);
+.login-hosted-submit:hover:not(:disabled) {
+  transform: translate(-2px, -2px);
+  box-shadow: 8px 8px 0 var(--crayon-blue);
+  background: #f0f7ff;
 }
 
-.login-loading {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #e6b800; /* Gold */
-  border-top-color: #e6b800; /* Consistent gold spin */
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
+.doodle-star-one { top: 15%; right: 12%; width: 70px; height: 70px; stroke: var(--crayon-yellow); opacity: 0.9; }
+.doodle-arrow-one { bottom: 15%; left: 10%; width: 90px; height: 90px; stroke: var(--crayon-blue); transform: rotate(-10deg); opacity: 0.9; }
+.doodle-squiggle-one { top: 45%; right: 8%; width: 110px; height: 35px; stroke: var(--crayon-red); opacity: 0.9; }
+.doodle-loop-two { bottom: 20%; right: 15%; width: 80px; height: 80px; stroke: var(--crayon-green); opacity: 0.9; }
+.doodle-star-two { top: 30%; left: 5%; width: 50px; height: 50px; stroke: var(--crayon-red); opacity: 0.9; }
 
 .login-card {
   position: relative;
   z-index: 2;
   width: 100%;
-  max-width: 430px;
-  /* Hard black border for the brutalist edge - consistent `#000000` */
-  border: 5px solid #000000; 
-  border-radius: 8px;
-  /* Thick gold outline mimicking a laptop body frame */
-  outline: clamp(15px, 2.7vw, 32px) solid #e6b800; 
-  /* Deep charcoal background to make gold pop */
-  background: #1a1a1a; 
-  box-shadow:
-    26px 28px 0 #ffc600, /* Amber drop shadow */
-    33px 35px 0 #b29100, /* Dark gold secondary drop shadow */
-    -12px -13px 0 rgba(0, 0, 0, 0.1),
-    0 28px 0 rgba(0, 0, 0, 0.8); /* Deep black base shadow */
-  padding: clamp(26px, 4vw, 40px) clamp(22px, 3.6vw, 36px) 28px;
+  max-width: 420px;
+  border: 1px solid #ddd;
+  border-radius: 2px;
+  background: #fff;
+  /* Restore "Stack of paper" look using multiple shadows */
+  box-shadow: 
+    0 0 0 1px #eee,
+    3px 3px 0 #fff,
+    3px 3px 0 1px #ddd,
+    6px 6px 0 #fff,
+    6px 6px 0 1px #ccc,
+    12px 12px 20px rgba(0,0,0,0.1);
+  padding: 48px 40px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  transform: rotate(-3.5deg);
+  gap: 24px;
+  transform: rotate(-0.5deg);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: float-card 8s ease-in-out infinite;
 }
 
-.login-card::before,
-.login-card::after {
-  content: "";
-  position: absolute;
-  inset: -17px;
-  border: 4px solid #e6b800; /* Rich Gold inner marker line */
-  border-radius: 8px;
-  pointer-events: none;
+@keyframes float-card {
+  0%, 100% { transform: translateY(0) rotate(-0.5deg); }
+  50% { transform: translateY(-10px) rotate(0.5deg); }
 }
 
-.login-card::before {
-  transform: rotate(4.2deg);
-}
-
-.login-card::after {
-  inset: -28px -20px -20px -31px;
-  border-color: #e6b800; /* Rich Gold outer scribble */
-  transform: rotate(-1.5deg);
-  /* Lower opacity on outer scribble to feel like a pencil sketch and not marker */
-  opacity: 0.4; 
+.login-card:hover {
+  transform: rotate(0deg) scale(1.02) !important;
+  box-shadow: 
+    0 0 0 1px #eee,
+    5px 5px 0 #fff,
+    5px 5px 0 1px #ddd,
+    10px 10px 0 #fff,
+    10px 10px 0 1px #ccc,
+    20px 20px 30px rgba(0,0,0,0.15);
+  animation-play-state: paused;
 }
 
 .login-brand {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   text-align: center;
 }
 
 .login-logo {
-  width: 64px;
-  height: 64px;
-  border-radius: 8px;
-  background: #e6b800; /* Gold */
-  border: 4px solid #000; /* Hard black border */
-  box-shadow: 7px 8px 0 #ffc600; /* Amber shadow */
+  width: 72px;
+  height: 72px;
+  border-radius: 4px;
+  background: #fff;
+  border: 2px solid #000;
   display: flex;
   align-items: center;
   justify-content: center;
-  transform: rotate(-6deg);
+  transform: rotate(-3deg);
+  margin-bottom: 8px;
+  box-shadow: 4px 4px 0 var(--crayon-blue);
   overflow: hidden;
 }
 
 .login-logo img {
-  width: 46px;
-  height: 46px;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  display: block;
-  filter: hue-rotate(90deg) contrast(1.2);
 }
 
 .login-title {
   margin: 0;
-  color: #ffffff; /* Off-white text on dark BG */
-  font: 900 clamp(2.3rem, 7vw, 4rem) "Courier New", monospace;
-  letter-spacing: 0;
-  line-height: 0.92;
-  text-shadow: 5px 4px 0 #e6b800, 8px 7px 0 #000000; /* Gold and Black shadow */
+  color: #1a1a1a;
+  font: 900 3.5rem 'Gochi Hand', cursive;
+  line-height: 1;
+  text-shadow: 3px 3px 0 var(--crayon-yellow);
 }
 
 .login-subtitle {
   margin: 0;
-  color: #e6b800; /* Rich Gold */
-  font: 800 1rem "Courier New", monospace;
-  transform: rotate(1.5deg);
+  color: #777;
+  font: 400 1.2rem 'Gochi Hand', cursive;
 }
 
 .login-mode-tag {
   margin: 4px 0 0;
-  align-self: center;
-  padding: 5px 11px;
-  border: 3px solid #000;
-  background: #e6b800; /* Gold */
-  color: #1e1e1e; /* Deep charcoal text */
-  font: 900 0.86rem "Courier New", monospace;
-  box-shadow: 5px 5px 0 #ffc600; /* Amber shadow */
-}
-
-.login-form {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.login-field {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.login-field label {
-  color: #e6b800; /* Rich Gold text on dark BG - excellent contrast */
-  font: 900 0.86rem "Courier New", monospace;
-  text-transform: uppercase;
-}
-
-.login-field input {
-  background: #ffffff; /* White input */
-  border: 4px solid #000000; /* Hard black marker border */
-  border-radius: 6px;
-  color: #000000; /* Black text */
-  padding: 12px 14px;
-  font: inherit;
-  font-size: 1rem;
-  font-weight: 800;
-  box-shadow: 6px 6px 0 #e6b800; /* Gold shadow */
-  transition: transform 0.16s ease, box-shadow 0.16s ease;
-}
-
-.login-field input::placeholder {
-  color: rgba(0, 0, 0, 0.4);
-}
-
-.login-field input:focus-visible {
-  outline: none;
-  box-shadow: 6px 6px 0 #e6b800, 10px 10px 0 #000000; /* Gold and Black */
-  transform: translate(-2px, -2px);
-}
-
-.login-error {
-  margin: 0;
-  color: #1e1e1e; /* Deep charcoal text */
-  background: #ffea00; /* Powerful, clear gold standard error background */
-  border: 4px solid #000;
-  border-radius: 6px;
-  padding: 10px 12px;
-  font: 900 0.86rem "Courier New", monospace;
-  box-shadow: 5px 5px 0 #ffc600; /* Amber */
-}
-
-.login-submit,
-.login-hosted-submit {
-  border: 4px solid #000;
-  border-radius: 6px;
-  cursor: pointer;
-  font: 900 1rem "Courier New", monospace;
-  letter-spacing: 0;
-  transition: transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 50px;
-  text-transform: uppercase;
-}
-
-.login-submit {
-  /* Sign In - Powerful Primary button with gold background, dark text */
-  margin-top: 4px;
-  background: #e6b800; /* Gold */
-  color: #1e1e1e; /* Deep charcoal text */
-  box-shadow: 8px 8px 0 #ffc600; /* Amber shadow */
-}
-
-.login-hosted-submit {
-  /* AWS Cognito - Secondary button with white background, dark text */
-  background: #ffffff; /* White */
-  color: #1e1e1e; /* Deep charcoal text */
-  box-shadow: 8px 8px 0 #ffc600; /* Amber shadow */
-}
-
-.login-divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: #ffffff;
-  font: 900 0.82rem "Courier New", monospace;
-  margin: -8px 0;
-}
-
-.login-divider::before,
-.login-divider::after {
-  content: "";
-  height: 4px;
-  flex: 1;
-  background: #e6b800; /* Rich Gold */
-  border: 1px solid #000;
-}
-
-.login-divider span {
-  line-height: 1;
-  padding: 0 5px;
-  background: #1e1e1e; /* Deep charcoal */
-}
-
-.login-hosted-submit:hover:not(:disabled),
-.login-submit:hover:not(:disabled) {
-  /* Recolor colored shadows on hover with amber/black pops */
-  box-shadow: 4px 4px 0 #ffc600, 8px 8px 0 #000000; 
-  transform: translate(3px, 3px) rotate(-1deg);
+  padding: 4px 12px;
+  border: 2px solid #000;
+  background: var(--crayon-green);
+  color: #000;
+  font: 700 0.85rem 'Gochi Hand', cursive;
+  border-radius: 10px;
+  box-shadow: 3px 3px 0 #000;
 }
 
 .login-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  background: #ffffff;
-  border: 4px solid #000;
-  border-radius: 6px;
+  background: #f8f8f8;
+  border: 2px solid #000;
+  border-radius: 12px;
   padding: 4px;
-  gap: 4px;
-  box-shadow: 6px 6px 0 #000;
+  gap: 6px;
 }
 
 .login-tabs button {
-  border: 3px solid transparent;
-  border-radius: 4px;
+  border: none;
+  border-radius: 8px;
   background: transparent;
-  color: #000; /* Black text */
-  padding: 9px 8px;
+  color: #000;
+  padding: 10px;
   cursor: pointer;
-  font: 900 0.9rem "Courier New", monospace;
-  transition: all 0.18s ease;
-  text-transform: uppercase;
+  font: 700 1.1rem 'Gochi Hand', cursive;
+  transition: all 0.2s;
 }
 
 .login-tabs button.active {
-  /* Active tab button - background gold, dark text, gold shadow */
-  background: #e6b800; /* Gold */
-  color: #1e1e1e; /* Deep charcoal text */
-  border-color: #000;
-  box-shadow: 4px 4px 0 #ffc600; /* Amber shadow */
+  background: var(--crayon-yellow);
+  box-shadow: 3px 3px 0 #000;
+  transform: translateY(-1px);
 }
 
-.login-verify-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  text-align: center;
-  padding: 8px;
+.login-field label {
   color: #000;
-  background: #ffea00; /* powerful gold standard verification info background */
-  border: 4px solid #000;
-  border-radius: 6px;
-  box-shadow: 6px 6px 0 #ffc600; /* Amber */
+  font: 700 1.2rem 'Gochi Hand', cursive;
 }
 
-.login-back {
-  background: transparent;
-  border: 0;
-  font: inherit;
-  font-size: 0.9rem;
-  font-weight: 900;
-  color: #e6b800; /* Gold */
+.login-field input {
+  background: #fff;
+  border: 2px solid #000;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font: 400 1.2rem 'Gochi Hand', cursive;
+}
+
+.login-field input:focus {
+  outline: none;
+  border-color: var(--crayon-blue);
+  box-shadow: 4px 4px 0 var(--crayon-blue);
+}
+
+.login-submit {
+  background: var(--crayon-red);
+  color: #fff;
+  border: 3px solid #000;
+  border-radius: 12px;
+  font: 700 1.4rem 'Gochi Hand', cursive;
+  padding: 14px;
+  margin-top: 8px;
+  box-shadow: 6px 6px 0 #000;
   cursor: pointer;
-  padding: 6px 0;
-  text-align: center;
-  transition: color 0.15s ease;
+  transition: all 0.2s;
 }
 
-.login-back:hover:not(:disabled) {
-  color: #ffc600; /* Amber hover */
+.login-submit:hover:not(:disabled) {
+  transform: translate(-2px, -2px);
+  box-shadow: 8px 8px 0 #000;
 }
 
-.login-cognito-note {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  margin: 0;
-  color: #e6b800; /* Gold */
-  font: 800 0.78rem "Courier New", monospace;
-  text-transform: uppercase;
-}
-
-/* Notebook styling from reference */
-.login-note-card,
-.login-bucket {
+/* Notebook styling */
+.login-note-card {
   position: absolute;
   z-index: 1;
-  border: 4px solid #000;
-  color: #000;
-  font: 900 clamp(1.15rem, 3vw, 2.1rem) "Comic Sans MS", "Courier New", monospace;
-  line-height: 1.15;
-  text-align: center;
-  pointer-events: none;
-}
-
-.login-note-card {
-  right: clamp(20px, 8vw, 120px);
-  top: 17vh;
+  right: 10%;
+  top: 10%;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  width: clamp(150px, 19vw, 245px);
-  padding: 42px 18px 30px 34px;
-  /* Recolor hot pink notebook background with rich gold accent from reference image */
-  background: #e6b800; 
-  /* Shadow and wire recolored with gold/beige tones */
-  box-shadow: 13px 13px 0 #ffc600, 20px 20px 0 rgba(0, 0, 0, 0.4); 
-  transform: rotate(-4deg);
+  padding: 20px;
+  background: #fff;
+  border: 2px solid #000;
+  box-shadow: 8px 8px 0 var(--crayon-green);
+  transform: rotate(4deg);
+  font: 700 1.4rem 'Gochi Hand', cursive;
+  color: #000;
+  text-align: center;
+  opacity: 0.8;
+  animation: float-note 5s ease-in-out infinite;
+}
+
+@keyframes float-note {
+  0%, 100% { transform: translate(0, 0) rotate(4deg); }
+  50% { transform: translate(-5px, -15px) rotate(6deg); }
 }
 
 .login-note-card::after {
   content: "";
   position: absolute;
-  inset: 11px -11px -15px 11px;
-  border: 4px solid #000;
-  border-radius: 6px;
-}
-
-.login-note-wire {
-  position: absolute;
-  left: 15px;
-  top: 8px;
-  bottom: 12px;
-  width: 28px;
-  background:
-    radial-gradient(ellipse at center, transparent 0 44%, #000 46% 53%, transparent 55%) 0 0 / 28px 26px repeat-y;
-}
-
-/* Mug styling from reference image */
-.login-bucket {
-  right: 2vw;
-  bottom: -18px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: clamp(175px, 22vw, 275px);
-  min-height: 210px;
-  padding: 82px 22px 22px;
-  /* Mug colored with cyan pop from second reference image */
-  background: #00e5ff; 
-  color: #000;
+  inset: 4px -4px -4px 4px;
+  border: 1px solid #000;
   border-radius: 8px;
-  box-shadow: inset 0 0 0 5px #000; /* Hard black inner stroke */
-  transform: rotate(-1.5deg);
+  z-index: -1;
 }
 
-.login-bucket span {
+.login-ribbon {
   position: absolute;
-  left: 22px;
-  right: 22px;
-  top: 35px;
-  height: 44px;
-  border: 7px solid #000; /* hard black rim */
-  border-top: 0;
+  border: 30px solid var(--crayon-blue);
+  border-left-color: transparent;
   border-radius: 50%;
-  background: #3b240f; /* dark coffee inside */
+  opacity: 0.03;
+  width: 50vw;
+  height: 25vw;
+  left: -5vw;
+  top: -5vh;
 }
 
-@keyframes login-drift {
-  to { transform: rotate(360deg); }
-}
-
-@media (max-width: 920px) {
-  .login-shell {
-    padding-top: 118px;
-  }
-
-  .login-card {
-    transform: rotate(0.4deg);
-  }
-
-  .login-note-card,
-  .login-bucket {
-    display: none;
-  }
-}
-
-@media (max-width: 560px) {
-  .login-shell {
-    align-items: flex-start;
-    padding: 116px 166px 34px;
-  }
-
-  .login-card {
-    max-width: 100%;
-    outline-width: 10px;
-    box-shadow:
-      10px 12px 0 #e6b800, /* Gold */
-      15px 17px 0 #ffc600, /* Amber */
-      0 20px 0 rgba(0, 0, 0, 0.8); /* Deep black base shadow */
-    padding: 24px 18px;
-    transform: none;
-  }
-
-  .login-card::before,
-  .login-card::after {
-    display: none;
-  }
-
-  .login-title {
-    font-size: clamp(2.4rem, 14vw, 3.3rem);
-  }
-
-  .login-subtitle {
-    font-size: 0.9rem;
-  }
-
-  .login-code-smear {
-    display: none;
-  }
+.login-loop {
+  position: absolute;
+  border: 15px solid var(--crayon-red);
+  border-right-color: transparent;
+  border-radius: 50%;
+  opacity: 0.03;
+  width: 35vw;
+  height: 35vw;
+  right: -5vw;
+  bottom: -5vh;
 }
 
 /* ── Account card sign-out button ───────────────────────────────────────── */
