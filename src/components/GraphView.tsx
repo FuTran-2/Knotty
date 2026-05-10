@@ -14,11 +14,8 @@ type GraphViewProps = {
   visibleNodes: PersonNode[]
   selectedNode: PersonNode | null
   activeGroup: string
-  relationshipFilter: 'all' | Relationship
   onActiveGroupChange: (group: string) => void
-  onRelationshipFilterChange: (value: 'all' | Relationship) => void
   onSelectNode: (nodeId: string) => void
-  onUpdateRelationship: (relationship: Relationship) => void
   onUpdateNode: (
     nodeId: string,
     patch: Partial<Pick<PersonNode, 'name' | 'contact' | 'notes' | 'relationship' | 'groups'>>,
@@ -30,11 +27,8 @@ export function GraphView({
   visibleNodes,
   selectedNode,
   activeGroup,
-  relationshipFilter,
   onActiveGroupChange,
-  onRelationshipFilterChange,
   onSelectNode,
-  onUpdateRelationship,
   onUpdateNode,
   onDeleteNode,
 }: GraphViewProps) {
@@ -176,19 +170,6 @@ export function GraphView({
     return positions
   }, [displayedNodes, cx, cy, graphSize.width, graphSize.height])
 
-  // ── World → screen coordinate transform ──────────────────────────────────
-  // Inner <g> uses: translate(cx+panX, cy+panY) scale(zoom) translate(-cx, -cy)
-  // So: screen = (cx + panX) + (world - cx) * zoom
-  const toScreen = (world: Position): Position => ({
-    x: cx + pan.x + (world.x - cx) * zoom,
-    y: cy + pan.y + (world.y - cy) * zoom,
-  })
-
-  const ringWorldPos = selectedNode
-    ? (nodeOverrides[selectedNode.id] ?? personPositions[selectedNode.id])
-    : undefined
-  const ringScreenPos = ringWorldPos ? toScreen(ringWorldPos) : undefined
-
   const editingPerson = useMemo(
     () => visibleNodes.find((n) => n.id === editingPersonId) ?? null,
     [editingPersonId, visibleNodes],
@@ -321,6 +302,8 @@ export function GraphView({
       setIsPanning(false)
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
+      // Let the click event fire first, then clear the flag
+      setTimeout(() => { didPanRef.current = false }, 0)
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
@@ -356,32 +339,6 @@ export function GraphView({
           {Math.round(zoom * 100)}%
         </button>
         <button type="button" onClick={zoomIn} title="Zoom in (Ctrl +)">+</button>
-      </div>
-
-      {/* Relationship filter strip */}
-      <div className="graph-toolbar">
-        <div className="relationship-tabs">
-          <button
-            type="button"
-            className={relationshipFilter === 'all' ? 'active' : ''}
-            onClick={() => onRelationshipFilterChange('all')}
-          >
-            all
-          </button>
-          {RELATIONSHIP_ORDER.map((type) => (
-            <button
-              key={type}
-              type="button"
-              className={relationshipFilter === type ? 'active' : ''}
-              onClick={() => onRelationshipFilterChange(type)}
-            >
-              {type}
-            </button>
-          ))}
-        </div>
-        <span>
-          {focusedGroup ? `${focusedGroup} (${displayedNodes.length})` : `${groups.length} groups`}
-        </span>
       </div>
 
       {/* SVG graph canvas */}
@@ -514,30 +471,6 @@ export function GraphView({
           </>
         )}
       </svg>
-
-      {/* Relationship ring (HTML overlay, positioned in screen coords) */}
-      {selectedNode && ringScreenPos ? (
-        <div className="ring-selector" style={{ left: ringScreenPos.x, top: ringScreenPos.y }}>
-          {RELATIONSHIP_ORDER.map((item, index) => {
-            const angle = (index / RELATIONSHIP_ORDER.length) * Math.PI * 2 - Math.PI / 2
-            const r = 78
-            const x = Math.cos(angle) * r
-            const y = Math.sin(angle) * r
-            return (
-              <button
-                key={item}
-                type="button"
-                onClick={() => onUpdateRelationship(item)}
-                title={`Set relationship: ${item}`}
-                style={{ transform: `translate(${x}px, ${y}px)`, borderColor: RELATIONSHIP_COLORS[item] }}
-                className={selectedNode.relationship === item ? 'active' : ''}
-              >
-                {item[0]}
-              </button>
-            )
-          })}
-        </div>
-      ) : null}
 
       {/* Edit popup */}
       {editingPerson ? (

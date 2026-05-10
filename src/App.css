@@ -167,7 +167,47 @@
   margin-top: auto;
 }
 
-.add-form button[type='submit'] {
+.action-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.action-btn {
+  border: 1px solid rgba(156, 180, 255, 0.55);
+  border-radius: 10px;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.32));
+  color: #2f3b4f;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 500;
+  transition: all 0.18s ease;
+  box-shadow: 0 4px 12px rgba(120, 155, 210, 0.1);
+}
+
+.action-btn:hover {
+  background: linear-gradient(150deg, rgba(220, 232, 255, 0.88), rgba(200, 220, 255, 0.55));
+  border-color: rgba(130, 165, 255, 0.75);
+}
+
+.action-btn.active {
+  background: linear-gradient(145deg, rgba(56, 113, 255, 0.72), rgba(107, 147, 255, 0.58));
+  border-color: rgba(56, 113, 255, 0.6);
+  color: #f0f6ff;
+  box-shadow: 0 6px 18px rgba(82, 119, 218, 0.28);
+}
+
+.inline-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(180, 200, 240, 0.3);
+  margin-top: 2px;
+}
+
+.inline-form-submit {
   border: 1px solid rgba(255, 255, 255, 0.72);
   border-radius: 10px;
   background: linear-gradient(145deg, rgba(56, 113, 255, 0.72), rgba(107, 147, 255, 0.58));
@@ -175,7 +215,13 @@
   padding: 8px;
   cursor: pointer;
   font-size: 0.86rem;
-  box-shadow: 0 16px 28px rgba(82, 119, 218, 0.22);
+  font: inherit;
+  box-shadow: 0 8px 20px rgba(82, 119, 218, 0.22);
+  transition: opacity 0.15s ease;
+}
+
+.inline-form-submit:hover {
+  opacity: 0.88;
 }
 
 .quick-actions .action-buttons {

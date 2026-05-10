@@ -6,35 +6,43 @@ import { Sidebar } from './components/Sidebar'
 import { parseLinkedInConnectionsCsv } from './lib/csv'
 import { normalizeRelationship } from './types/network'
 import { createNodeId, initialNodes } from './types/network'
-import type { NodeDraft, PersonNode, Relationship } from './types/network'
+import type { NodeDraft, PersonNode } from './types/network'
 
 function App() {
   const [nodes, setNodes] = useState<PersonNode[]>(initialNodes)
+  const [standaloneGroups, setStandaloneGroups] = useState<string[]>([])
   const [activeGroup, setActiveGroup] = useState('all')
   const [search, setSearch] = useState('')
-  const [relationshipFilter, setRelationshipFilter] = useState<'all' | Relationship>('all')
   const [selectedNodeId, setSelectedNodeId] = useState(initialNodes[0].id)
 
   const groups = useMemo(() => {
     const bucket = new Set<string>()
     nodes.forEach((node) => node.groups.forEach((group) => bucket.add(group.toLowerCase())))
+    standaloneGroups.forEach((g) => bucket.add(g.toLowerCase()))
     return ['all', ...Array.from(bucket).sort()]
-  }, [nodes])
+  }, [nodes, standaloneGroups])
+
+  const addGroup = (name: string) => {
+    const normalized = name.trim().toLowerCase()
+    if (!normalized) return
+    setStandaloneGroups((current) =>
+      current.includes(normalized) ? current : [...current, normalized],
+    )
+  }
 
   const visibleNodes = useMemo(() => {
     const q = search.trim().toLowerCase()
     return nodes.filter((node) => {
       const groupOk =
         activeGroup === 'all' || node.groups.some((group) => group.toLowerCase() === activeGroup)
-      const relationshipOk = relationshipFilter === 'all' || node.relationship === relationshipFilter
       const searchOk =
         !q ||
         node.name.toLowerCase().includes(q) ||
         node.contact.toLowerCase().includes(q) ||
         node.notes.toLowerCase().includes(q)
-      return groupOk && relationshipOk && searchOk
+      return groupOk && searchOk
     })
-  }, [activeGroup, nodes, relationshipFilter, search])
+  }, [activeGroup, nodes, search])
 
   const selectedNode = useMemo(
     () => nodes.find((node) => node.id === selectedNodeId) ?? visibleNodes[0] ?? nodes[0] ?? null,
@@ -55,22 +63,6 @@ function App() {
 
     setNodes((current) => [nextNode, ...current])
     setSelectedNodeId(nextNode.id)
-  }
-
-  const updateRelationship = (value: Relationship) => {
-    const targetId = selectedNode?.id
-    if (!targetId) return
-
-    setNodes((current) =>
-      current.map((node) =>
-        node.id === targetId
-          ? {
-              ...node,
-              relationship: value,
-            }
-          : node,
-      ),
-    )
   }
 
   const updateNode = (
@@ -118,16 +110,14 @@ function App() {
         onSearchChange={setSearch}
         onImportLinkedInCsv={importLinkedInCsv}
         onAddNode={onAddNode}
+        onAddGroup={addGroup}
       />
       <GraphView
         visibleNodes={visibleNodes}
         selectedNode={selectedNode}
         activeGroup={activeGroup}
-        relationshipFilter={relationshipFilter}
         onActiveGroupChange={setActiveGroup}
-        onRelationshipFilterChange={setRelationshipFilter}
         onSelectNode={setSelectedNodeId}
-        onUpdateRelationship={updateRelationship}
         onUpdateNode={updateNode}
         onDeleteNode={deleteNode}
       />

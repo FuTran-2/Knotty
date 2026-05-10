@@ -18,9 +18,10 @@ type SidebarProps = {
   onSearchChange: (value: string) => void
   onImportLinkedInCsv: (file: File) => Promise<void>
   onAddNode: (draft: NodeDraft) => void
+  onAddGroup: (name: string) => void
 }
 
-type FormState = {
+type PersonFormState = {
   name: string
   photo: string
   contact: string
@@ -29,7 +30,7 @@ type FormState = {
   notes: string
 }
 
-const initialForm: FormState = {
+const initialPersonForm: PersonFormState = {
   name: '',
   photo: '',
   contact: '',
@@ -47,27 +48,42 @@ export function Sidebar({
   onSearchChange,
   onImportLinkedInCsv,
   onAddNode,
+  onAddGroup,
 }: SidebarProps) {
-  const [form, setForm] = useState<FormState>(initialForm)
+  const [openPanel, setOpenPanel] = useState<null | 'person' | 'group'>(null)
+  const [personForm, setPersonForm] = useState<PersonFormState>(initialPersonForm)
+  const [groupName, setGroupName] = useState('')
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const togglePanel = (panel: 'person' | 'group') => {
+    setOpenPanel((current) => (current === panel ? null : panel))
+  }
+
+  const handleAddPerson = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const name = form.name.trim()
+    const name = personForm.name.trim()
     if (!name) return
-
     onAddNode({
       name,
-      photo: form.photo.trim() || createAvatarUrl(name),
-      contact: form.contact.trim(),
-      relationship: form.relationship,
-      notes: form.notes.trim(),
-      groups: form.groups
+      photo: personForm.photo.trim() || createAvatarUrl(name),
+      contact: personForm.contact.trim(),
+      relationship: personForm.relationship,
+      notes: personForm.notes.trim(),
+      groups: personForm.groups
         .split(',')
-        .map((group) => group.trim().toLowerCase())
+        .map((g) => g.trim().toLowerCase())
         .filter(Boolean),
     })
+    setPersonForm(initialPersonForm)
+    setOpenPanel(null)
+  }
 
-    setForm(initialForm)
+  const handleAddGroup = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const name = groupName.trim()
+    if (!name) return
+    onAddGroup(name)
+    setGroupName('')
+    setOpenPanel(null)
   }
 
   const handleImport = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -118,52 +134,81 @@ export function Sidebar({
         </label>
       </div>
 
-      <form className="panel add-form" onSubmit={handleSubmit}>
-        <h2>Add Person</h2>
-        <input
-          value={form.name}
-          onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-          placeholder="Name"
-          required
-        />
-        <input
-          value={form.photo}
-          onChange={(event) => setForm((current) => ({ ...current, photo: event.target.value }))}
-          placeholder="Photo URL (optional)"
-        />
-        <input
-          value={form.contact}
-          onChange={(event) => setForm((current) => ({ ...current, contact: event.target.value }))}
-          placeholder="Contact info"
-        />
-        <select
-          value={form.relationship}
-          onChange={(event) =>
-            setForm((current) => ({
-              ...current,
-              relationship: normalizeRelationship(event.target.value),
-            }))
-          }
-        >
-          {RELATIONSHIP_ORDER.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
-        </select>
-        <input
-          value={form.groups}
-          onChange={(event) => setForm((current) => ({ ...current, groups: event.target.value }))}
-          placeholder="Groups (comma separated)"
-        />
-        <textarea
-          value={form.notes}
-          onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
-          placeholder="Notes"
-          rows={3}
-        />
-        <button type="submit">Create node</button>
-      </form>
+      <div className="panel">
+        <div className="action-buttons">
+          <button
+            type="button"
+            className={`action-btn${openPanel === 'person' ? ' active' : ''}`}
+            onClick={() => togglePanel('person')}
+          >
+            + Add Person
+          </button>
+          <button
+            type="button"
+            className={`action-btn${openPanel === 'group' ? ' active' : ''}`}
+            onClick={() => togglePanel('group')}
+          >
+            + Add Group
+          </button>
+        </div>
+
+        {openPanel === 'person' && (
+          <form onSubmit={handleAddPerson} className="inline-form">
+            <input
+              value={personForm.name}
+              onChange={(e) => setPersonForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="Name"
+              required
+              autoFocus
+            />
+            <input
+              value={personForm.photo}
+              onChange={(e) => setPersonForm((f) => ({ ...f, photo: e.target.value }))}
+              placeholder="Photo URL (optional)"
+            />
+            <input
+              value={personForm.contact}
+              onChange={(e) => setPersonForm((f) => ({ ...f, contact: e.target.value }))}
+              placeholder="Contact info"
+            />
+            <select
+              value={personForm.relationship}
+              onChange={(e) =>
+                setPersonForm((f) => ({ ...f, relationship: normalizeRelationship(e.target.value) }))
+              }
+            >
+              {RELATIONSHIP_ORDER.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+            <input
+              value={personForm.groups}
+              onChange={(e) => setPersonForm((f) => ({ ...f, groups: e.target.value }))}
+              placeholder="Groups (comma separated)"
+            />
+            <textarea
+              value={personForm.notes}
+              onChange={(e) => setPersonForm((f) => ({ ...f, notes: e.target.value }))}
+              placeholder="Notes"
+              rows={3}
+            />
+            <button type="submit" className="inline-form-submit">Create Person</button>
+          </form>
+        )}
+
+        {openPanel === 'group' && (
+          <form onSubmit={handleAddGroup} className="inline-form">
+            <input
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              placeholder="Group name"
+              required
+              autoFocus
+            />
+            <button type="submit" className="inline-form-submit">Create Group</button>
+          </form>
+        )}
+      </div>
     </aside>
   )
 }
