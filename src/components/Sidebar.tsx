@@ -41,6 +41,18 @@ const initialPersonForm: PersonFormState = {
   notes: '',
 }
 
+const DoodleStar = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="24" height="24">
+    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+  </svg>
+)
+
+const DoodleArrow = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="32" height="32">
+    <path d="M5 12h14M12 5l7 7-7 7" />
+  </svg>
+)
+
 export function Sidebar({
   authUser,
   nodesCount,
@@ -115,7 +127,7 @@ export function Sidebar({
           <p>{nodesCount} connections</p>
         </div>
         <button type="button" className="signout-btn" onClick={onSignOut} title="Sign out">
-          <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15">
+          <svg viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
             <path fillRule="evenodd" d="M3 4.25A2.25 2.25 0 015.25 2h5.5A2.25 2.25 0 0113 4.25v2a.75.75 0 01-1.5 0v-2a.75.75 0 00-.75-.75h-5.5a.75.75 0 00-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 00.75-.75v-2a.75.75 0 011.5 0v2A2.25 2.25 0 0110.75 18h-5.5A2.25 2.25 0 013 15.75V4.25z" clipRule="evenodd" />
             <path fillRule="evenodd" d="M19 10a.75.75 0 00-.75-.75H8.704l1.048-1.168a.75.75 0 10-1.004-1.116l-2.5 2.25a.75.75 0 000 1.116l2.5 2.25a.75.75 0 101.004-1.116L8.704 10.75H18.25A.75.75 0 0019 10z" clipRule="evenodd" />
           </svg>
@@ -123,6 +135,7 @@ export function Sidebar({
       </div>
 
       <div className="panel">
+        <DoodleStar className="doodle-star-panel" />
         <h2>Groups</h2>
         <div className="group-tabs">
           {groups.map((group) => (
@@ -168,7 +181,7 @@ export function Sidebar({
           className="linkedin-import-btn"
           onClick={() => fileInputRef.current?.click()}
         >
-          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
             <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-14 9v2h14v-2H5z" />
           </svg>
           Upload Connections.csv
@@ -191,6 +204,7 @@ export function Sidebar({
       </div>
 
       <div className="panel">
+        <DoodleArrow className="doodle-arrow-panel" />
         <div className="action-buttons">
           <button
             type="button"

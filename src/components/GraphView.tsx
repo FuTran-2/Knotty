@@ -37,6 +37,12 @@ type GraphViewProps = {
   onDeleteNode: (nodeId: string) => void
 }
 
+const DoodleSquiggle = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 100 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width="100" height="20">
+    <path d="M0 10 Q12.5 0 25 10 T50 10 T75 10 T100 10" />
+  </svg>
+)
+
 export function GraphView({
   visibleNodes,
   selectedNode,
@@ -464,6 +470,7 @@ export function GraphView({
             <rect width={graphSize.width} height={graphSize.height} fill="url(#bg-glow)" />
 
             <g transform={innerTransform}>
+              <DoodleSquiggle className="doodle-squiggle-graph" />
               {/* Edges */}
               {focusedGroup
                 ? displayedNodes.map((node) => {
@@ -473,8 +480,10 @@ export function GraphView({
                       <line
                         key={`edge-${node.id}`}
                         x1={cx} y1={cy} x2={pos.x} y2={pos.y}
-                        stroke="rgba(148, 163, 184, 0.35)"
-                        strokeWidth={1.3}
+                        stroke="#000"
+                        strokeWidth={2}
+                        strokeDasharray="5,5"
+                        opacity={0.4}
                       />
                     )
                   })
@@ -485,22 +494,24 @@ export function GraphView({
                       <line
                         key={`edge-${item.group}`}
                         x1={cx} y1={cy} x2={pos.x} y2={pos.y}
-                        stroke="rgba(148, 163, 184, 0.35)"
-                        strokeWidth={1.3}
+                        stroke="#000"
+                        strokeWidth={2}
+                        strokeDasharray="5,5"
+                        opacity={0.4}
                       />
                     )
                   })}
 
               {/* Center "You" node */}
               <g className="node-group" onClick={backToGroups}>
-                <circle cx={cx} cy={cy} r={32} className="account-node" />
+                <circle cx={cx} cy={cy} r={36} className="account-node" />
                 <image
                   href={ACCOUNT_PHOTO}
-                  x={cx - 20} y={cy - 20}
-                  width={40} height={40}
-                  clipPath="circle(20px at center)"
+                  x={cx - 24} y={cy - 24}
+                  width={48} height={48}
+                  clipPath="circle(24px at center)"
                 />
-                <text x={cx} y={cy + 52} textAnchor="middle" className="node-label">
+                <text x={cx} y={cy + 60} textAnchor="middle" className="node-label">
                   {ACCOUNT_NAME}
                 </text>
               </g>
@@ -529,17 +540,20 @@ export function GraphView({
                       >
                         <circle
                           cx={pos.x} cy={pos.y}
-                          r={isSelected ? 28 : 24}
+                          r={isSelected ? 32 : 28}
                           className="node-glow"
-                          style={{ stroke: RELATIONSHIP_COLORS[node.relationship] }}
+                          style={{ 
+                            stroke: RELATIONSHIP_COLORS[node.relationship],
+                            fill: isSelected ? '#fffef0' : 'rgba(255,254,240,0.9)'
+                          }}
                         />
                         <image
                           href={node.photo}
-                          x={pos.x - 18} y={pos.y - 18}
-                          width={36} height={36}
-                          clipPath="circle(18px at center)"
+                          x={pos.x - 20} y={pos.y - 20}
+                          width={40} height={40}
+                          clipPath="circle(20px at center)"
                         />
-                        <text x={pos.x} y={pos.y + 36} textAnchor="middle" className="node-label">
+                        <text x={pos.x} y={pos.y + 44} textAnchor="middle" className="node-label">
                           {node.name}
                         </text>
                       </g>
@@ -560,11 +574,11 @@ export function GraphView({
                           openGroup(item.group)
                         }}
                       >
-                        <circle cx={pos.x} cy={pos.y} r={28} className="node-glow group-bubble" />
+                        <circle cx={pos.x} cy={pos.y} r={32} className="node-glow group-bubble" />
                         <text x={pos.x} y={pos.y + 4} textAnchor="middle" className="node-label group-label">
-                          {item.group.slice(0, 8)}
+                          {item.group.slice(0, 10)}
                         </text>
-                        <text x={pos.x} y={pos.y + 40} textAnchor="middle" className="node-label group-count">
+                        <text x={pos.x} y={pos.y + 48} textAnchor="middle" className="node-label group-count">
                           {item.nodeIds.length} people
                         </text>
                       </g>

@@ -12,6 +12,15 @@ import { normalizeRelationship } from './types/network'
 import { createNodeId, initialNodes } from './types/network'
 import type { NodeDraft, PersonNode } from './types/network'
 
+const DoodleLayer = () => (
+  <div className="doodle-layer" aria-hidden="true">
+    <svg className="doodle doodle-1" viewBox="0 0 100 100"><path d="M50 10 L60 40 L90 40 L65 60 L75 90 L50 70 L25 90 L35 60 L10 40 L40 40 Z" fill="var(--crayon-yellow)" stroke="#000" strokeWidth="2"/></svg>
+    <svg className="doodle doodle-2" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="var(--crayon-blue)" strokeWidth="3" strokeDasharray="10 5"/></svg>
+    <svg className="doodle doodle-3" viewBox="0 0 100 20"><path d="M0 10 Q25 0 50 10 T100 10" fill="none" stroke="var(--crayon-red)" strokeWidth="3"/></svg>
+    <svg className="doodle doodle-4" viewBox="0 0 100 100"><path d="M10 10 L90 90 M90 10 L10 90" fill="none" stroke="var(--crayon-green)" strokeWidth="4"/></svg>
+  </div>
+)
+
 function App() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
@@ -150,6 +159,7 @@ function App() {
 
   return (
     <div className="app-shell">
+      <DoodleLayer />
       <Sidebar
         authUser={authUser}
         nodesCount={nodes.length}
