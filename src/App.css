@@ -169,8 +169,20 @@
   display: block;
 }
 
+.graph-stage {
+  width: 100%;
+  height: 100%;
+  transform-origin: center center;
+  transition: transform 360ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.graph-stage.zooming {
+  filter: saturate(1.05);
+}
+
 .node-group {
   cursor: grab;
+  transition: transform 180ms ease;
 }
 
 .node-group:active {
@@ -192,6 +204,40 @@
   fill: #374151;
   font-size: 0.74rem;
   user-select: none;
+}
+
+.group-bubble {
+  fill: #ffffff;
+  stroke: #9ca3af;
+}
+
+.group-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.group-count {
+  font-size: 0.66rem;
+  fill: #6b7280;
+}
+
+.person-node-enter {
+  animation: person-pop 260ms ease both;
+  transform-origin: center;
+}
+
+@keyframes person-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .ring-selector {
@@ -266,6 +312,83 @@
   color: #4b5563;
 }
 
+.node-popup {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  width: min(430px, 55%);
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  background: rgba(255, 255, 255, 0.98);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.node-popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.node-popup-header h3 {
+  margin: 0;
+  color: #111827;
+}
+
+.node-popup-header button {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.node-popup-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.node-popup-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #4b5563;
+  font-size: 0.78rem;
+}
+
+.node-popup-grid label.full {
+  grid-column: 1 / -1;
+}
+
+.node-popup-grid input,
+.node-popup-grid select,
+.node-popup-grid textarea {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 8px;
+  font: inherit;
+  color: #111827;
+}
+
+.node-popup-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.node-popup-actions button {
+  border: 1px solid #d1d5db;
+  background: #111827;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
 @media (max-width: 1100px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -278,5 +401,11 @@
 
   .graph-pane {
     min-height: 70vh;
+  }
+
+  .node-popup {
+    width: calc(100% - 24px);
+    right: 12px;
+    bottom: 12px;
   }
 }

@@ -1,103 +1,141 @@
 # Knotty
 
-Knotty lets people create and visualize a relationship network with an Obsidian-like graph and a Kando-inspired radial selector.
+Knotty is a React + TypeScript app for creating and visualizing a personal relationship network.
+It includes a left control panel, an interactive force-like graph, and a radial relationship selector.
 
-## Features implemented
-
-- Node model includes `name`, `photo`, `contact`, `relationship`, `notes`, and `groups`
-- Left panel for account summary, group tabs, search/filter, LinkedIn CSV import, and add-person form
-- Right panel (about 70% width) for an interactive graph with drag nodes, relationship colors, and edge connections
-- Ring menu around selected node to quickly change relationship type
-- LinkedIn CSV import fallback (when LinkedIn API access is restricted)
-
-## Run locally
+## Quick Start
 
 ```bash
 npm install
 npm run dev
 ```
 
-## LinkedIn CSV import
-
-1. In LinkedIn, export your connections CSV.
-2. In Knotty, click **Import LinkedIn CSV**.
-3. The app maps connection rows to professional nodes and tags imported records with the `linkedin` group.
-
-## Build
+Production checks:
 
 ```bash
+npm run lint
 npm run build
 ```
-# React + TypeScript + Vite
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Features
 
-Currently, two official plugins are available:
+- Node model: `name`, `photo`, `contact`, `relationship`, `notes`, `groups`, `source`
+- Group tabs + search + relationship filter
+- Interactive graph with drag support
+- Radial selector to update a selected node relationship
+- LinkedIn CSV import fallback when LinkedIn API access is restricted
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Codebase Structure
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```text
+src/
+  App.tsx                   # App-level state and feature orchestration
+  App.css                   # Main layout/theme styles
+  index.css                 # Global baseline styles
+  components/
+    Sidebar.tsx             # Account card, groups, search, CSV import, add form
+    GraphView.tsx           # Graph rendering, layout simulation, drag behavior, ring menu
+    NodeDetail.tsx          # Selected node information card
+  lib/
+    csv.ts                  # LinkedIn CSV parsing + node conversion
+  types/
+    network.ts              # Domain types, constants, seed data, utility helpers
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Architecture Overview
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### `App.tsx` (container/orchestrator)
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Holds app-wide state:
+
+- `nodes`
+- `activeGroup`
+- `search`
+- `relationshipFilter`
+- `selectedNodeId`
+
+Computes derived state:
+
+- `groups`
+- `visibleNodes`
+- `selectedNode`
+
+Provides callbacks to child components:
+
+- `onAddNode(draft)`
+- `importLinkedInCsv(file)`
+- `updateRelationship(value)`
+- selection/filter setters
+
+### `Sidebar.tsx` (input + management UI)
+
+- Maintains local add-node form state
+- Normalizes and submits form data as `NodeDraft`
+- Handles CSV file selection and delegates parsing/import via callback
+
+### `GraphView.tsx` (visualization + interactions)
+
+- Maintains graph-local position, drag, and resize state
+- Runs animation loop (`requestAnimationFrame`) to position nodes
+- Renders edges, center account node, relationship-colored nodes
+- Handles node selection + ring menu relationship updates
+
+### `lib/csv.ts` (data import utility)
+
+- Parses LinkedIn CSV text
+- Maps rows to `PersonNode[]` with:
+  - `source: 'linkedin'`
+  - default `relationship: 'Professional'`
+  - group tagging (`linkedin`, optional `software engineer`)
+
+### `types/network.ts` (single source of truth)
+
+- Domain types (`PersonNode`, `Relationship`, `NodeDraft`)
+- Shared constants (`RELATIONSHIP_ORDER`, `RELATIONSHIP_COLORS`)
+- Helpers (`createNodeId`, `createAvatarUrl`, `normalizeRelationship`)
+- Seed data (`initialNodes`)
+
+## Data Flow
+
+1. User action happens in `Sidebar` or `GraphView`.
+2. Component calls a callback from `App`.
+3. `App` updates state (`nodes`, filters, selection).
+4. `App` recomputes derived data (`groups`, `visibleNodes`, `selectedNode`).
+5. Updated props flow back into `Sidebar` and `GraphView`.
+
+## How To Modify Common Things
+
+### Add a new relationship type
+
+Update `src/types/network.ts`:
+
+1. Add to `Relationship` union.
+2. Add to `RELATIONSHIP_ORDER`.
+3. Add color in `RELATIONSHIP_COLORS`.
+
+### Add a new node field
+
+1. Add field to `PersonNode` and `NodeDraft` in `src/types/network.ts`.
+2. Update form in `src/components/Sidebar.tsx`.
+3. Map draft -> node in `src/App.tsx` (`onAddNode`).
+4. Display field in `src/components/NodeDetail.tsx` (if needed).
+5. Update CSV mapper in `src/lib/csv.ts` (if import should populate it).
+
+### Change graph behavior
+
+Edit `src/components/GraphView.tsx`:
+
+- Layout force constants (`pull`, damping, ring radius, clamp limits)
+- Edge generation logic
+- SVG visuals and interaction behavior
+
+## LinkedIn CSV Import
+
+1. Export LinkedIn connections CSV from LinkedIn.
+2. Use **Import LinkedIn CSV** in the sidebar.
+3. Imported rows become professional nodes and are tagged with `linkedin`.
+
+## Notes
+
+- Data is currently in-memory only (refresh clears runtime changes).
+- No backend persistence is connected yet.

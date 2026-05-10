@@ -3,6 +3,7 @@ import './App.css'
 import { GraphView } from './components/GraphView'
 import { Sidebar } from './components/Sidebar'
 import { parseLinkedInConnectionsCsv } from './lib/csv'
+import { normalizeRelationship } from './types/network'
 import { createNodeId, initialNodes } from './types/network'
 import type { NodeDraft, PersonNode, Relationship } from './types/network'
 
@@ -71,6 +72,22 @@ function App() {
     )
   }
 
+  const updateNode = (
+    nodeId: string,
+    patch: Partial<Pick<PersonNode, 'name' | 'contact' | 'notes' | 'relationship' | 'groups'>>,
+  ) => {
+    setNodes((current) =>
+      current.map((node) => {
+        if (node.id !== nodeId) return node
+        return {
+          ...node,
+          ...patch,
+          relationship: patch.relationship ? normalizeRelationship(patch.relationship) : node.relationship,
+        }
+      }),
+    )
+  }
+
   const importLinkedInCsv = async (file: File) => {
     const text = await file.text()
     const imported = parseLinkedInConnectionsCsv(text)
@@ -96,10 +113,13 @@ function App() {
       <GraphView
         visibleNodes={visibleNodes}
         selectedNode={selectedNode}
+        activeGroup={activeGroup}
         relationshipFilter={relationshipFilter}
+        onActiveGroupChange={setActiveGroup}
         onRelationshipFilterChange={setRelationshipFilter}
         onSelectNode={setSelectedNodeId}
         onUpdateRelationship={updateRelationship}
+        onUpdateNode={updateNode}
       />
     </div>
   )
