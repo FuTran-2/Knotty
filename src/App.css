@@ -1057,85 +1057,244 @@
 /* ── Login page ─────────────────────────────────────────────────────────── */
 
 .login-shell {
-  min-height: 100vh;
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  /* Deep charcoal base with subtle gold and dark grid/scribble lines */
   background:
-    radial-gradient(
-      clamp(620px, 75vw, 1500px) clamp(340px, 58vh, 920px) at 80% -10%,
-      rgba(132, 199, 255, 0.35),
-      rgba(255, 255, 255, 0)
-    ),
-    radial-gradient(
-      clamp(480px, 52vw, 1080px) clamp(300px, 44vh, 760px) at 10% 120%,
-      rgba(191, 169, 255, 0.22),
-      rgba(255, 255, 255, 0)
-    ),
-    linear-gradient(160deg, #dcefff 0%, #f7fbff 42%, #f6f7fd 100%);
-  padding: 24px;
+    repeating-linear-gradient(14deg, rgba(230, 184, 0, 0.05) 0 1px, transparent 1px 72px),
+    repeating-linear-gradient(-23deg, transparent 0 34px, rgba(50, 50, 70, 0.1) 34px 46px, transparent 46px 120px),
+    #1e1e1e; /* Deep charcoal - softer than pure black */
+  padding: clamp(96px, 12vh, 132px) 24px clamp(42px, 8vh, 86px);
+}
+
+.login-shell::before {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  z-index: -2;
+  /* Conic gradients using gold, amber, and deep tones for a technical, glitch pattern */
+  background:
+    conic-gradient(from 40deg at 28% 45%, transparent 0 12%, rgba(230, 184, 0, 0.8) 12% 18%, transparent 18% 33%, rgba(255, 198, 0, 0.6) 33% 39%, transparent 39% 100%),
+    conic-gradient(from -25deg at 72% 55%, transparent 0 9%, rgba(13, 38, 71, 0.6) 9% 13%, transparent 13% 28%, rgba(230, 184, 0, 0.5) 28% 32%, transparent 32% 100%);
+  animation: login-drift 8s ease-in-out infinite alternate;
+}
+
+.login-shell::after {
+  content: "function connect() === nope }   while(prompt) makeGraph();   throw new Error('knotty');   import network from './brain'";
+  position: absolute;
+  inset: -6%;
+  z-index: -1;
+  color: rgba(230, 184, 0, 0.08); /* Faint, faded phosphor display gold */
+  font: 700 clamp(1rem, 2.8vw, 2.2rem) "Courier New", monospace;
+  line-height: 2.1;
+  word-spacing: 1.8rem;
+  transform: rotate(14deg);
+  text-transform: lowercase;
+  pointer-events: none;
+  filter: distort(10px);
+}
+
+.login-chaos-bg,
+.login-code-smear,
+.login-ribbon,
+.login-loop {
+  position: absolute;
+  pointer-events: none;
+}
+
+.login-chaos-bg {
+  inset: 0;
+  z-index: 0;
+}
+
+.login-code-smear {
+  color: rgba(230, 184, 0, 0.8); /* Gold code smear */
+  font: 800 clamp(0.9rem, 1.9vw, 1.5rem) "Courier New", monospace;
+  white-space: nowrap;
+  text-transform: lowercase;
+  /* Multiply works well for depth here on a light-colored part of a dark base */
+  mix-blend-mode: multiply; 
+}
+
+.smear-one { top: 10%; left: -5%; transform: rotate(-18deg); color: rgba(255, 198, 0, 0.6); } /* Amber */
+.smear-two { top: 72%; left: 9%; transform: rotate(10deg); color: rgba(230, 184, 0, 0.6); } /* Gold */
+.smear-three { top: 20%; right: -11%; transform: rotate(28deg); color: rgba(230, 184, 0, 0.8); } /* Gold */
+.smear-four { bottom: 5%; right: 13%; transform: rotate(-9deg); color: rgba(255, 198, 0, 0.6); } /* Amber */
+
+.login-ribbon {
+  border: clamp(22px, 3vw, 44px) solid #e6b800; /* Rich Gold */
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  border-radius: 50%;
+  opacity: 0.85;
+}
+
+.ribbon-one {
+  width: 56vw;
+  height: 28vw;
+  left: -8vw;
+  top: 8vh;
+  transform: rotate(-18deg);
+}
+
+.ribbon-two {
+  width: 50vw;
+  height: 33vw;
+  right: -14vw;
+  top: -4vh;
+  transform: rotate(28deg);
+  border-right-color: transparent;
+}
+
+.ribbon-three {
+  width: 72vw;
+  height: 30vw;
+  left: 21vw;
+  bottom: -14vw;
+  transform: rotate(-8deg);
+  border-color: #e6b800; /* Rich Gold */
+  border-left-color: transparent;
+}
+
+.login-loop {
+  border: clamp(8px, 1vw, 16px) solid #e6b800; /* Rich Gold */
+  border-right-color: transparent;
+  border-radius: 50%;
+}
+
+.loop-one {
+  width: 42vw;
+  height: 21vw;
+  right: 8vw;
+  top: 24vh;
+  transform: rotate(16deg);
+  border-color: #e6b800; /* Rich Gold */
+  border-right-color: transparent;
+}
+
+.loop-two {
+  width: 38vw;
+  height: 28vw;
+  left: 38vw;
+  bottom: 8vh;
+  transform: rotate(-27deg);
 }
 
 .login-loading {
   width: 40px;
   height: 40px;
-  border: 3px solid rgba(91, 143, 255, 0.2);
-  border-top-color: #5b8fff;
+  border: 4px solid #e6b800; /* Gold */
+  border-top-color: #e6b800; /* Consistent gold spin */
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 
 .login-card {
+  position: relative;
+  z-index: 2;
   width: 100%;
-  max-width: 400px;
-  border: 1px solid rgba(255, 255, 255, 0.62);
-  border-radius: 24px;
-  background: linear-gradient(158deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.32));
-  backdrop-filter: blur(40px) saturate(160%);
-  -webkit-backdrop-filter: blur(40px) saturate(160%);
+  max-width: 430px;
+  /* Hard black border for the brutalist edge - consistent `#000000` */
+  border: 5px solid #000000; 
+  border-radius: 8px;
+  /* Thick gold outline mimicking a laptop body frame */
+  outline: clamp(15px, 2.7vw, 32px) solid #e6b800; 
+  /* Deep charcoal background to make gold pop */
+  background: #1a1a1a; 
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.25),
-    0 32px 64px rgba(100, 140, 220, 0.18),
-    0 8px 24px rgba(100, 140, 220, 0.1);
-  padding: 40px 36px 32px;
+    26px 28px 0 #ffc600, /* Amber drop shadow */
+    33px 35px 0 #b29100, /* Dark gold secondary drop shadow */
+    -12px -13px 0 rgba(0, 0, 0, 0.1),
+    0 28px 0 rgba(0, 0, 0, 0.8); /* Deep black base shadow */
+  padding: clamp(26px, 4vw, 40px) clamp(22px, 3.6vw, 36px) 28px;
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 18px;
+  transform: rotate(-3.5deg);
+}
+
+.login-card::before,
+.login-card::after {
+  content: "";
+  position: absolute;
+  inset: -17px;
+  border: 4px solid #e6b800; /* Rich Gold inner marker line */
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.login-card::before {
+  transform: rotate(4.2deg);
+}
+
+.login-card::after {
+  inset: -28px -20px -20px -31px;
+  border-color: #e6b800; /* Rich Gold outer scribble */
+  transform: rotate(-1.5deg);
+  /* Lower opacity on outer scribble to feel like a pencil sketch and not marker */
+  opacity: 0.4; 
 }
 
 .login-brand {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   text-align: center;
 }
 
 .login-logo {
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
-  background: linear-gradient(145deg, rgba(255,255,255,0.9), rgba(220,235,255,0.6));
-  border: 1px solid rgba(255,255,255,0.8);
-  box-shadow: 0 8px 24px rgba(91, 143, 255, 0.2);
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  background: #e6b800; /* Gold */
+  border: 4px solid #000; /* Hard black border */
+  box-shadow: 7px 8px 0 #ffc600; /* Amber shadow */
   display: flex;
   align-items: center;
   justify-content: center;
+  transform: rotate(-6deg);
+  overflow: hidden;
+}
+
+.login-logo img {
+  width: 46px;
+  height: 46px;
+  object-fit: cover;
+  display: block;
+  filter: hue-rotate(90deg) contrast(1.2);
 }
 
 .login-title {
   margin: 0;
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: #1a2540;
-  letter-spacing: -0.02em;
+  color: #ffffff; /* Off-white text on dark BG */
+  font: 900 clamp(2.3rem, 7vw, 4rem) "Courier New", monospace;
+  letter-spacing: 0;
+  line-height: 0.92;
+  text-shadow: 5px 4px 0 #e6b800, 8px 7px 0 #000000; /* Gold and Black shadow */
 }
 
 .login-subtitle {
   margin: 0;
-  font-size: 0.88rem;
-  color: #6070a0;
+  color: #e6b800; /* Rich Gold */
+  font: 800 1rem "Courier New", monospace;
+  transform: rotate(1.5deg);
+}
+
+.login-mode-tag {
+  margin: 4px 0 0;
+  align-self: center;
+  padding: 5px 11px;
+  border: 3px solid #000;
+  background: #e6b800; /* Gold */
+  color: #1e1e1e; /* Deep charcoal text */
+  font: 900 0.86rem "Courier New", monospace;
+  box-shadow: 5px 5px 0 #ffc600; /* Amber shadow */
 }
 
 .login-form {
@@ -1147,199 +1306,139 @@
 .login-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-}
-
-.login-field-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  gap: 7px;
 }
 
 .login-field label {
-  font-size: 0.84rem;
-  font-weight: 500;
-  color: #2d3a55;
+  color: #e6b800; /* Rich Gold text on dark BG - excellent contrast */
+  font: 900 0.86rem "Courier New", monospace;
+  text-transform: uppercase;
 }
 
 .login-field input {
-  background: rgba(255, 255, 255, 0.65);
-  border: 1px solid rgba(200, 218, 255, 0.8);
-  border-radius: 12px;
-  color: #1f2b3f;
-  padding: 10px 14px;
+  background: #ffffff; /* White input */
+  border: 4px solid #000000; /* Hard black marker border */
+  border-radius: 6px;
+  color: #000000; /* Black text */
+  padding: 12px 14px;
   font: inherit;
-  font-size: 0.92rem;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  font-size: 1rem;
+  font-weight: 800;
+  box-shadow: 6px 6px 0 #e6b800; /* Gold shadow */
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.login-field input::placeholder {
+  color: rgba(0, 0, 0, 0.4);
 }
 
 .login-field input:focus-visible {
   outline: none;
-  border-color: rgba(91, 143, 255, 0.7);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 0 0 3px rgba(91, 143, 255, 0.15);
-}
-
-.login-field input:disabled {
-  opacity: 0.6;
-}
-
-.login-forgot {
-  background: none;
-  border: none;
-  font: inherit;
-  font-size: 0.8rem;
-  color: #5b8fff;
-  cursor: pointer;
-  padding: 0;
-  opacity: 0.7;
-}
-
-.login-forgot:not(:disabled):hover {
-  opacity: 1;
-  text-decoration: underline;
-}
-
-.login-forgot:disabled {
-  cursor: default;
+  box-shadow: 6px 6px 0 #e6b800, 10px 10px 0 #000000; /* Gold and Black */
+  transform: translate(-2px, -2px);
 }
 
 .login-error {
   margin: 0;
-  font-size: 0.83rem;
-  color: #b91c1c;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  border-radius: 8px;
-  padding: 8px 12px;
+  color: #1e1e1e; /* Deep charcoal text */
+  background: #ffea00; /* Powerful, clear gold standard error background */
+  border: 4px solid #000;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font: 900 0.86rem "Courier New", monospace;
+  box-shadow: 5px 5px 0 #ffc600; /* Amber */
+}
+
+.login-submit,
+.login-hosted-submit {
+  border: 4px solid #000;
+  border-radius: 6px;
+  cursor: pointer;
+  font: 900 1rem "Courier New", monospace;
+  letter-spacing: 0;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+  text-transform: uppercase;
 }
 
 .login-submit {
-  border: 1px solid rgba(91, 143, 255, 0.5);
-  border-radius: 12px;
-  background: linear-gradient(145deg, rgba(56, 113, 255, 0.82), rgba(107, 147, 255, 0.72));
-  color: #fff;
-  padding: 11px;
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.92rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  box-shadow: 0 8px 24px rgba(56, 113, 255, 0.28);
-  transition: opacity 0.18s ease, box-shadow 0.18s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 42px;
+  /* Sign In - Powerful Primary button with gold background, dark text */
   margin-top: 4px;
+  background: #e6b800; /* Gold */
+  color: #1e1e1e; /* Deep charcoal text */
+  box-shadow: 8px 8px 0 #ffc600; /* Amber shadow */
 }
 
 .login-hosted-submit {
-  border: 1px solid rgba(91, 143, 255, 0.5);
-  border-radius: 12px;
-  background: linear-gradient(145deg, rgba(56, 113, 255, 0.82), rgba(107, 147, 255, 0.72));
-  color: #fff;
-  padding: 11px;
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.92rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  box-shadow: 0 8px 24px rgba(56, 113, 255, 0.28);
-  transition: opacity 0.18s ease, box-shadow 0.18s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 42px;
+  /* AWS Cognito - Secondary button with white background, dark text */
+  background: #ffffff; /* White */
+  color: #1e1e1e; /* Deep charcoal text */
+  box-shadow: 8px 8px 0 #ffc600; /* Amber shadow */
 }
 
 .login-divider {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #8b98b8;
-  font-size: 0.8rem;
+  color: #ffffff;
+  font: 900 0.82rem "Courier New", monospace;
   margin: -8px 0;
 }
 
 .login-divider::before,
 .login-divider::after {
   content: "";
-  height: 1px;
+  height: 4px;
   flex: 1;
-  background: rgba(185, 203, 240, 0.58);
+  background: #e6b800; /* Rich Gold */
+  border: 1px solid #000;
 }
 
 .login-divider span {
   line-height: 1;
+  padding: 0 5px;
+  background: #1e1e1e; /* Deep charcoal */
 }
 
-.login-hosted-submit:hover:not(:disabled) {
-  opacity: 0.9;
-  box-shadow: 0 12px 28px rgba(56, 113, 255, 0.36);
-}
-
-.login-hosted-submit:disabled {
-  opacity: 0.7;
-  cursor: default;
-}
-
+.login-hosted-submit:hover:not(:disabled),
 .login-submit:hover:not(:disabled) {
-  opacity: 0.9;
-  box-shadow: 0 12px 28px rgba(56, 113, 255, 0.36);
-}
-
-.login-submit:disabled {
-  opacity: 0.7;
-  cursor: default;
-}
-
-.login-spinner {
-  width: 18px;
-  height: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
+  /* Recolor colored shadows on hover with amber/black pops */
+  box-shadow: 4px 4px 0 #ffc600, 8px 8px 0 #000000; 
+  transform: translate(3px, 3px) rotate(-1deg);
 }
 
 .login-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  background: rgba(200, 215, 245, 0.22);
-  border: 1px solid rgba(200, 218, 255, 0.55);
-  border-radius: 12px;
-  padding: 3px;
-  gap: 3px;
+  background: #ffffff;
+  border: 4px solid #000;
+  border-radius: 6px;
+  padding: 4px;
+  gap: 4px;
+  box-shadow: 6px 6px 0 #000;
 }
 
 .login-tabs button {
-  border: none;
-  border-radius: 9px;
+  border: 3px solid transparent;
+  border-radius: 4px;
   background: transparent;
-  color: #6070a0;
-  padding: 8px;
+  color: #000; /* Black text */
+  padding: 9px 8px;
   cursor: pointer;
-  font: inherit;
-  font-size: 0.88rem;
-  font-weight: 500;
+  font: 900 0.9rem "Courier New", monospace;
   transition: all 0.18s ease;
+  text-transform: uppercase;
 }
 
 .login-tabs button.active {
-  background: rgba(255, 255, 255, 0.85);
-  color: #1a2540;
-  box-shadow: 0 2px 8px rgba(100, 140, 220, 0.14);
-}
-
-.login-tabs button:not(.active):hover {
-  color: #1a2540;
+  /* Active tab button - background gold, dark text, gold shadow */
+  background: #e6b800; /* Gold */
+  color: #1e1e1e; /* Deep charcoal text */
+  border-color: #000;
+  box-shadow: 4px 4px 0 #ffc600; /* Amber shadow */
 }
 
 .login-verify-info {
@@ -1348,45 +1447,29 @@
   align-items: center;
   gap: 10px;
   text-align: center;
-  padding: 4px 0 8px;
-  color: #3d5080;
-}
-
-.login-verify-info svg {
-  color: #5b8fff;
-}
-
-.login-verify-info p {
-  margin: 0;
-  font-size: 0.88rem;
-  line-height: 1.5;
-  color: #4a5a7a;
-}
-
-.login-verify-info strong {
-  color: #1a2540;
-}
-
-.login-code-input {
-  letter-spacing: 0.25em;
-  font-size: 1.2rem !important;
-  text-align: center;
+  padding: 8px;
+  color: #000;
+  background: #ffea00; /* powerful gold standard verification info background */
+  border: 4px solid #000;
+  border-radius: 6px;
+  box-shadow: 6px 6px 0 #ffc600; /* Amber */
 }
 
 .login-back {
-  background: none;
-  border: none;
+  background: transparent;
+  border: 0;
   font: inherit;
-  font-size: 0.84rem;
-  color: #6070a0;
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: #e6b800; /* Gold */
   cursor: pointer;
-  padding: 4px 0;
+  padding: 6px 0;
   text-align: center;
   transition: color 0.15s ease;
 }
 
 .login-back:hover:not(:disabled) {
-  color: #3050a0;
+  color: #ffc600; /* Amber hover */
 }
 
 .login-cognito-note {
@@ -1395,8 +1478,139 @@
   justify-content: center;
   gap: 5px;
   margin: 0;
-  font-size: 0.78rem;
-  color: #8898b8;
+  color: #e6b800; /* Gold */
+  font: 800 0.78rem "Courier New", monospace;
+  text-transform: uppercase;
+}
+
+/* Notebook styling from reference */
+.login-note-card,
+.login-bucket {
+  position: absolute;
+  z-index: 1;
+  border: 4px solid #000;
+  color: #000;
+  font: 900 clamp(1.15rem, 3vw, 2.1rem) "Comic Sans MS", "Courier New", monospace;
+  line-height: 1.15;
+  text-align: center;
+  pointer-events: none;
+}
+
+.login-note-card {
+  right: clamp(20px, 8vw, 120px);
+  top: 17vh;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: clamp(150px, 19vw, 245px);
+  padding: 42px 18px 30px 34px;
+  /* Recolor hot pink notebook background with rich gold accent from reference image */
+  background: #e6b800; 
+  /* Shadow and wire recolored with gold/beige tones */
+  box-shadow: 13px 13px 0 #ffc600, 20px 20px 0 rgba(0, 0, 0, 0.4); 
+  transform: rotate(-4deg);
+}
+
+.login-note-card::after {
+  content: "";
+  position: absolute;
+  inset: 11px -11px -15px 11px;
+  border: 4px solid #000;
+  border-radius: 6px;
+}
+
+.login-note-wire {
+  position: absolute;
+  left: 15px;
+  top: 8px;
+  bottom: 12px;
+  width: 28px;
+  background:
+    radial-gradient(ellipse at center, transparent 0 44%, #000 46% 53%, transparent 55%) 0 0 / 28px 26px repeat-y;
+}
+
+/* Mug styling from reference image */
+.login-bucket {
+  right: 2vw;
+  bottom: -18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: clamp(175px, 22vw, 275px);
+  min-height: 210px;
+  padding: 82px 22px 22px;
+  /* Mug colored with cyan pop from second reference image */
+  background: #00e5ff; 
+  color: #000;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 5px #000; /* Hard black inner stroke */
+  transform: rotate(-1.5deg);
+}
+
+.login-bucket span {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  top: 35px;
+  height: 44px;
+  border: 7px solid #000; /* hard black rim */
+  border-top: 0;
+  border-radius: 50%;
+  background: #3b240f; /* dark coffee inside */
+}
+
+@keyframes login-drift {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 920px) {
+  .login-shell {
+    padding-top: 118px;
+  }
+
+  .login-card {
+    transform: rotate(0.4deg);
+  }
+
+  .login-note-card,
+  .login-bucket {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .login-shell {
+    align-items: flex-start;
+    padding: 116px 166px 34px;
+  }
+
+  .login-card {
+    max-width: 100%;
+    outline-width: 10px;
+    box-shadow:
+      10px 12px 0 #e6b800, /* Gold */
+      15px 17px 0 #ffc600, /* Amber */
+      0 20px 0 rgba(0, 0, 0, 0.8); /* Deep black base shadow */
+    padding: 24px 18px;
+    transform: none;
+  }
+
+  .login-card::before,
+  .login-card::after {
+    display: none;
+  }
+
+  .login-title {
+    font-size: clamp(2.4rem, 14vw, 3.3rem);
+  }
+
+  .login-subtitle {
+    font-size: 0.9rem;
+  }
+
+  .login-code-smear {
+    display: none;
+  }
 }
 
 /* ── Account card sign-out button ───────────────────────────────────────── */
@@ -1412,22 +1626,24 @@
 
 .signout-btn {
   flex-shrink: 0;
-  background: none;
-  border: 1px solid rgba(200, 215, 240, 0.6);
+  background: #ffffff; /* White background sign out button */
+  border: 2px solid #000; /* hard black border */
   border-radius: 8px;
-  color: #7080a0;
+  color: #000; /* black text */
   padding: 5px 7px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.18s ease;
+  font-weight: 900;
 }
 
 .signout-btn:hover {
-  background: rgba(239, 68, 68, 0.08);
-  border-color: rgba(239, 68, 68, 0.3);
-  color: #b91c1c;
+  /* Recolor teal/red hover color with gold accentpop from reference image */
+  background: #e6b800; /* Gold */
+  border-color: #000; 
+  color: #ffffff; /* White text on hover */
 }
 
 /* ── Edit popup — photo upload ─────────────────────────────────────────── */

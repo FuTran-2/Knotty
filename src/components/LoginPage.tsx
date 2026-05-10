@@ -2,30 +2,13 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { confirmSignUp, signIn, signInWithHostedUi, signUp } from '../lib/auth'
 import type { AuthUser } from '../lib/auth'
+import logoAsset from '../../assets/image.jpg'
 
 type Mode = 'signin' | 'signup' | 'verify'
 
 type LoginPageProps = {
   onLogin: (user: AuthUser) => void
 }
-
-const KnottyLogo = () => (
-  <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="18" cy="18" r="17" stroke="url(#lg)" strokeWidth="2" />
-    <circle cx="18" cy="10" r="3.5" fill="url(#lg)" />
-    <circle cx="10" cy="24" r="3.5" fill="url(#lg)" />
-    <circle cx="26" cy="24" r="3.5" fill="url(#lg)" />
-    <line x1="18" y1="13" x2="10" y2="21" stroke="url(#lg)" strokeWidth="1.5" strokeLinecap="round" />
-    <line x1="18" y1="13" x2="26" y2="21" stroke="url(#lg)" strokeWidth="1.5" strokeLinecap="round" />
-    <line x1="10" y1="24" x2="26" y2="24" stroke="url(#lg)" strokeWidth="1.5" strokeLinecap="round" />
-    <defs>
-      <linearGradient id="lg" x1="0" y1="0" x2="36" y2="36" gradientUnits="userSpaceOnUse">
-        <stop stopColor="#5b8fff" />
-        <stop offset="1" stopColor="#a78bfa" />
-      </linearGradient>
-    </defs>
-  </svg>
-)
 
 export function LoginPage({ onLogin }: LoginPageProps) {
   const [mode, setMode] = useState<Mode>('signin')
@@ -110,15 +93,33 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     }
   }
 
+  const modeLabel =
+    mode === 'signin' ? 'SIGN_IN.NODE' : mode === 'signup' ? 'CREATE_NODE' : 'VERIFY_EMAIL'
+
   return (
     <div className="login-shell">
+      <div className="login-chaos-bg" aria-hidden="true">
+        <span className="login-code-smear smear-one">const graph = friends.map((person) =&gt; new Knot(person))</span>
+        <span className="login-code-smear smear-two">while (loading) &#123; untangle(network) &#125;</span>
+        <span className="login-code-smear smear-three">auth.connect(email, password) // still working?</span>
+        <span className="login-code-smear smear-four">throw new Error('too many cool contacts')</span>
+        <span className="login-ribbon ribbon-one" />
+        <span className="login-ribbon ribbon-two" />
+        <span className="login-ribbon ribbon-three" />
+        <span className="login-loop loop-one" />
+        <span className="login-loop loop-two" />
+      </div>
+
       <div className="login-card">
 
         {/* Brand */}
-        <div className="login-brand">
-          <div className="login-logo"><KnottyLogo /></div>
+      <div className="login-brand">
+          <div className="login-logo">
+            <img src={logoAsset} alt="" aria-hidden="true" />
+          </div>
           <h1 className="login-title">Knotty</h1>
-          <p className="login-subtitle">Your personal relationship graph</p>
+          <p className="login-subtitle">your personal relationship graph</p>
+          <p className="login-mode-tag">{modeLabel}</p>
         </div>
 
         {/* Mode tabs (hidden on verify screen) */}
