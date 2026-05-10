@@ -1,8 +1,10 @@
 import { Amplify } from 'aws-amplify'
 import type { ResourcesConfig } from 'aws-amplify'
 
+const hostedRedirectUri = 'https://main.d3c520skipl9wg.amplifyapp.com/'
+
 const defaultRedirectUri =
-  typeof window === 'undefined' ? 'https://main.d3c520skipl9wg.amplifyapp.com/' : window.location.origin + '/'
+  typeof window === 'undefined' ? hostedRedirectUri : `${window.location.origin}/`
 
 export const cognitoConfig = {
   region: import.meta.env.VITE_COGNITO_REGION ?? 'us-east-1',
@@ -34,7 +36,7 @@ export function configureCognitoAuth({ includeOAuth = true }: ConfigureCognitoAu
             ? {
                 oauth: {
                   domain: cognitoConfig.domain,
-                  scopes: ['email', 'openid', 'phone'],
+                  scopes: ['openid', 'email'],
                   redirectSignIn: [cognitoConfig.redirectSignIn],
                   redirectSignOut: [cognitoConfig.redirectSignOut],
                   responseType: 'code' as const,

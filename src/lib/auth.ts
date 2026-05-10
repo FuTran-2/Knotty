@@ -114,7 +114,7 @@ export async function confirmSignUp(email: string, code: string): Promise<void> 
 
 export async function signInWithHostedUi(): Promise<void> {
   assertCognitoConfigured()
-  await signInWithRedirect({ options: { prompt: 'LOGIN' } })
+  await signInWithRedirect()
 }
 
 // ── Sign out ─────────────────────────────────────────────────────────────────
