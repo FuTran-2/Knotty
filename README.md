@@ -1,7 +1,7 @@
 # Knotty
 
 Knotty is a React + TypeScript app for creating and visualizing a personal relationship network.
-It includes a left control panel, an interactive force-like graph, and a radial relationship selector.
+It includes a left control panel, an interactive force-like graph, and an in-graph edit panel for updating people.
 
 ## Quick Start
 
@@ -19,28 +19,61 @@ npm run build
 
 ## Cognito Setup
 
-The app uses AWS Amplify Auth against Cognito. Copy `.env.example` to `.env.local`, then set your actual User Pool ID:
+The app uses AWS Amplify Auth against Cognito. Copy `.env.example` to `.env.local`, then set your actual Cognito values:
 
 ```bash
 VITE_COGNITO_USER_POOL_ID=us-east-1_yourPoolId
+VITE_COGNITO_USER_POOL_CLIENT_ID=yourClientId
+VITE_COGNITO_DOMAIN=your-domain.auth.us-east-1.amazoncognito.com
 ```
 
-The app client ID, Hosted UI domain, and scopes are already filled from the Cognito URL you provided. In the Cognito app client settings, make sure these callback and sign-out URLs are allowed:
+In the Cognito app client settings, make sure these callback and sign-out URLs are allowed:
 
 ```text
 http://localhost:5173/
 https://main.d3c520skipl9wg.amplifyapp.com/
 ```
 
-Use the local URL in `.env.local` while developing. In Amplify hosting, set `VITE_COGNITO_REDIRECT_SIGN_IN` and `VITE_COGNITO_REDIRECT_SIGN_OUT` to `https://main.d3c520skipl9wg.amplifyapp.com/`.
+## Photo Uploads
+
+The app includes three photo-upload modes (two active + one scaffold), configured via environment variables:
+
+1. **Local Fallback (Default)**: If no AWS configuration is found, photos are resized locally in the browser and stored as Base64 data URLs. No backend is required.
+2. **Direct S3 Upload**: Uploads photos directly to an S3 bucket using AWS access keys. Best for quick setup during development.
+3. **Serverless Backend (Scaffold / Not Wired Yet)**: A Lambda + SAM scaffold exists but is not connected to the frontend upload flow yet.
+
+### Option 2: Direct S3 Setup
+
+Add these to your `.env.local`:
+
+```bash
+VITE_AWS_REGION=us-east-1
+VITE_AWS_ACCESS_KEY_ID=AKIA...
+VITE_AWS_SECRET_ACCESS_KEY=...
+VITE_S3_BUCKET=your-s3-bucket-name
+```
+
+### Option 3: Serverless Backend (Scaffold / Not Wired Yet)
+
+There is a SAM backend scaffold in `backend/`, but the current frontend upload flow does not call
+`VITE_UPLOAD_URL_ENDPOINT` yet. Today, uploads use either:
+
+- local Base64 fallback (default), or
+- direct S3 upload via `VITE_AWS_*` + `VITE_S3_BUCKET`.
+
+Use the SAM backend only if you plan to wire presigned URL fetching into `src/lib/upload.ts`.
 
 ## Features
 
-- Node model: `name`, `photo`, `contact`, `relationship`, `notes`, `groups`, `source`
-- Group tabs + search + relationship filter
-- Interactive graph with drag support
-- Radial selector to update a selected node relationship
-- LinkedIn CSV import fallback when LinkedIn API access is restricted
+- **Node model**: `name`, `photo`, `contact`, `relationship`, `notes`, `groups`, `source`
+- **Group tabs + search**
+- **Interactive Graph**: Powered by `d3-force`, featuring:
+  - **Physics-based layout**: Uses `forceSimulation` with `forceLink`, `forceManyBody`, and `forceCollide` for natural node positioning.
+  - **Dynamic Views**: Automatically switches between a "Group View" (showing relationship clusters) and a "Person View" (showing individuals within a group).
+  - **Drag-and-drop**: Interactive node manipulation that integrates with the physics simulation.
+  - **Edit Panel**: Quick updates for relationship, groups, notes, contact info, and photo.
+- **LinkedIn CSV import**: Fallback when LinkedIn API access is restricted.
+- **ChatBot**: AI-powered assistant for managing your network.
 
 ## Codebase Structure
 
@@ -51,7 +84,7 @@ src/
   index.css                 # Global baseline styles
   components/
     Sidebar.tsx             # Account card, groups, search, CSV import, add form
-    GraphView.tsx           # Graph rendering, layout simulation, drag behavior, ring menu
+    GraphView.tsx           # Graph rendering, layout simulation, drag/zoom/pan, edit popup
     NodeDetail.tsx          # Selected node information card
   lib/
     csv.ts                  # LinkedIn CSV parsing + node conversion
@@ -68,7 +101,6 @@ Holds app-wide state:
 - `nodes`
 - `activeGroup`
 - `search`
-- `relationshipFilter`
 - `selectedNodeId`
 
 Computes derived state:
@@ -81,7 +113,7 @@ Provides callbacks to child components:
 
 - `onAddNode(draft)`
 - `importLinkedInCsv(file)`
-- `updateRelationship(value)`
+- `updateNode(nodeId, patch)`
 - selection/filter setters
 
 ### `Sidebar.tsx` (input + management UI)
@@ -92,10 +124,11 @@ Provides callbacks to child components:
 
 ### `GraphView.tsx` (visualization + interactions)
 
-- Maintains graph-local position, drag, and resize state
-- Runs animation loop (`requestAnimationFrame`) to position nodes
-- Renders edges, center account node, relationship-colored nodes
-- Handles node selection + ring menu relationship updates
+- Maintains graph-local position, zoom, and pan state.
+- Uses `d3-force` simulations to calculate node positions based on links, collision, and many-body forces.
+- Renders SVG elements for nodes and edges, with support for both group-level and person-level views.
+- Handles interactivity: node dragging, background panning, zooming, and selection.
+- Uses a popup edit panel for updating node details and relationship type.
 
 ### `lib/csv.ts` (data import utility)
 
@@ -154,5 +187,7 @@ Edit `src/components/GraphView.tsx`:
 
 ## Notes
 
-- Data is currently in-memory only (refresh clears runtime changes).
-- No backend persistence is connected yet.
+- **Data Persistence**: Node data is currently in-memory only (refresh clears runtime changes).
+- **Photo Persistence**: In Direct S3 mode, photos are stored in S3, but node-to-photo links are still in-memory and reset on refresh.
+- **Future Work**: Connect a database (e.g., DynamoDB) for full persistence of nodes and relationships.
+
