@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Hub } from 'aws-amplify/utils'
 import './App.css'
 import { ChatBot } from './components/ChatBot'
 import { GraphView } from './components/GraphView'
@@ -15,11 +16,32 @@ function App() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
 
-  // Restore session on mount (replace body with Cognito's getCurrentUser)
   useEffect(() => {
-    getCurrentUser()
-      .then(setAuthUser)
-      .finally(() => setAuthLoading(false))
+    let mounted = true
+
+    const restoreUser = async () => {
+      const user = await getCurrentUser()
+      if (!mounted) return
+      setAuthUser(user)
+      setAuthLoading(false)
+    }
+
+    const stopListening = Hub.listen('auth', ({ payload }) => {
+      if (payload.event === 'signedIn' || payload.event === 'signInWithRedirect') {
+        void restoreUser()
+      }
+
+      if (payload.event === 'signedOut') {
+        setAuthUser(null)
+      }
+    })
+
+    void restoreUser()
+
+    return () => {
+      mounted = false
+      stopListening()
+    }
   }, [])
 
   const handleSignOut = async () => {

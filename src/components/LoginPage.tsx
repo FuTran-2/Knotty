@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { confirmSignUp, signIn, signUp } from '../lib/auth'
+import { confirmSignUp, signIn, signInWithHostedUi, signUp } from '../lib/auth'
 import type { AuthUser } from '../lib/auth'
 
 type Mode = 'signin' | 'signup' | 'verify'
@@ -47,6 +47,17 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     setMode(next)
     setError('')
     setCode('')
+  }
+
+  const handleHostedUi = async () => {
+    setError('')
+    setLoading(true)
+    try {
+      await signInWithHostedUi()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not open Cognito. Please try again.')
+      setLoading(false)
+    }
   }
 
   // ── Sign in ────────────────────────────────────────────────────────────────
@@ -130,6 +141,14 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           </div>
         )}
 
+        {mode !== 'verify' && (
+          <button type="button" className="login-hosted-submit" onClick={handleHostedUi} disabled={loading}>
+            {loading ? <span className="login-spinner" /> : 'Continue with AWS Cognito'}
+          </button>
+        )}
+
+        {mode !== 'verify' && <div className="login-divider"><span>or</span></div>}
+
         {/* ── Sign in form ──────────────────────────────────────────────── */}
         {mode === 'signin' && (
           <form className="login-form" onSubmit={handleSignIn} noValidate>
@@ -148,13 +167,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             </div>
 
             <div className="login-field">
-              <div className="login-field-header">
-                <label htmlFor="si-password">Password</label>
-                {/* TODO: wire to Cognito resetPassword() flow */}
-                <button type="button" className="login-forgot" tabIndex={-1} disabled>
-                  Forgot password?
-                </button>
-              </div>
+              <label htmlFor="si-password">Password</label>
               <input
                 id="si-password"
                 type="password"
