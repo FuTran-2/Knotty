@@ -35,6 +35,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 const REGION     = import.meta.env.VITE_AWS_REGION             as string | undefined
 const ACCESS_KEY = import.meta.env.VITE_AWS_ACCESS_KEY_ID      as string | undefined
@@ -72,24 +73,25 @@ export async function uploadPhoto(file: File, contactId?: string): Promise<strin
 async function uploadToS3(file: File, contactId?: string): Promise<string> {
   const key = `photos/${contactId ?? Date.now()}.jpg`
 
-  // Resize locally first so we store a small, consistent image
+  // 1. Sign the request locally (pure JS — no network call, no CORS issue)
+  const command    = new PutObjectCommand({ Bucket: BUCKET!, Key: key, ContentType: 'image/jpeg' })
+  const signedUrl  = await getSignedUrl(s3!, command, { expiresIn: 120 })
+  console.log('[upload] presigned URL →', signedUrl)
+
+  // 2. Resize image locally
   const base64 = await resizeToBase64(file, RESIZE_PX, JPEG_QUALITY)
-  const blob   = base64ToBlob(base64, 'image/jpeg')
+  const bytes  = base64ToUint8Array(base64)
 
-  await s3!.send(new PutObjectCommand({
-    Bucket:      BUCKET!,
-    Key:         key,
-    Body:        blob,
-    ContentType: 'image/jpeg',
-    // No ACL — public read is handled by the bucket policy instead.
-    // In the AWS Console: S3 → your bucket → Permissions → Bucket policy → paste:
-    // {
-    //   "Version":"2012-10-17",
-    //   "Statement":[{"Effect":"Allow","Principal":"*","Action":"s3:GetObject","Resource":"arn:aws:s3:::YOUR_BUCKET/*"}]
-    // }
-  }))
+  // 3. PUT directly to S3 with the signed URL — simple fetch, no SDK overhead
+  const res = await fetch(signedUrl, {
+    method:  'PUT',
+    body:    bytes.buffer as ArrayBuffer,
+    headers: { 'Content-Type': 'image/jpeg' },
+  })
+  if (!res.ok) throw new Error(`S3 responded ${res.status}: ${await res.text()}`)
 
-  return `https://${BUCKET}.s3.${REGION}.amazonaws.com/${key}`
+  // ?t= busts the browser cache so re-uploads show immediately
+  return `https://${BUCKET}.s3.${REGION}.amazonaws.com/${key}?t=${Date.now()}`
 }
 
 // ── Local fallback ────────────────────────────────────────────────────────────
@@ -126,9 +128,9 @@ function resizeToBase64(file: File, size: number, quality: number): Promise<stri
   })
 }
 
-function base64ToBlob(dataUrl: string, mime: string): Blob {
+function base64ToUint8Array(dataUrl: string): Uint8Array {
   const byteString = atob(dataUrl.split(',')[1])
   const buf = new Uint8Array(byteString.length)
   for (let i = 0; i < byteString.length; i++) buf[i] = byteString.charCodeAt(i)
-  return new Blob([buf], { type: mime })
+  return buf
 }
