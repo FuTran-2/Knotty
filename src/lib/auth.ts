@@ -66,7 +66,7 @@ export async function signUp(email: string, password: string, name: string): Pro
  * Cognito replacement:
  *   await cognitoConfirmSignUp({ username: email, confirmationCode: code })
  */
-export async function confirmSignUp(email: string, code: string): Promise<void> {
+export async function confirmSignUp(_email: string, code: string): Promise<void> {
   if (!code.trim()) throw new Error('Verification code is required.')
   await new Promise((r) => setTimeout(r, 500))
   // Placeholder: any non-empty code is accepted. Replace with Cognito call above.
