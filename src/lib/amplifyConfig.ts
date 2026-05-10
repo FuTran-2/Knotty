@@ -16,7 +16,13 @@ export const cognitoConfig = {
 export const isCognitoConfigured =
   Boolean(cognitoConfig.userPoolId) && Boolean(cognitoConfig.userPoolClientId)
 
-if (isCognitoConfigured) {
+type ConfigureCognitoAuthOptions = {
+  includeOAuth?: boolean
+}
+
+export function configureCognitoAuth({ includeOAuth = true }: ConfigureCognitoAuthOptions = {}) {
+  if (!isCognitoConfigured) return
+
   const amplifyConfig: ResourcesConfig = {
     Auth: {
       Cognito: {
@@ -24,13 +30,17 @@ if (isCognitoConfigured) {
         userPoolClientId: cognitoConfig.userPoolClientId,
         loginWith: {
           email: true,
-          oauth: {
-            domain: cognitoConfig.domain,
-            scopes: ['email', 'openid', 'phone'],
-            redirectSignIn: [cognitoConfig.redirectSignIn],
-            redirectSignOut: [cognitoConfig.redirectSignOut],
-            responseType: 'code',
-          },
+          ...(includeOAuth
+            ? {
+                oauth: {
+                  domain: cognitoConfig.domain,
+                  scopes: ['email', 'openid', 'phone'],
+                  redirectSignIn: [cognitoConfig.redirectSignIn],
+                  redirectSignOut: [cognitoConfig.redirectSignOut],
+                  responseType: 'code' as const,
+                },
+              }
+            : {}),
         },
       },
     },
@@ -38,3 +48,5 @@ if (isCognitoConfigured) {
 
   Amplify.configure(amplifyConfig)
 }
+
+configureCognitoAuth()

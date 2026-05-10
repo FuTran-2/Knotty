@@ -143,9 +143,11 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
         {mode !== 'verify' && (
           <button type="button" className="login-hosted-submit" onClick={handleHostedUi} disabled={loading}>
-            {loading ? <span className="login-spinner" /> : 'Continue with Cognito'}
+            {loading ? <span className="login-spinner" /> : 'Continue with AWS Cognito'}
           </button>
         )}
+
+        {mode !== 'verify' && <div className="login-divider"><span>or</span></div>}
 
         {/* ── Sign in form ──────────────────────────────────────────────── */}
         {mode === 'signin' && (
@@ -165,13 +167,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             </div>
 
             <div className="login-field">
-              <div className="login-field-header">
-                <label htmlFor="si-password">Password</label>
-                {/* TODO: wire to Cognito resetPassword() flow */}
-                <button type="button" className="login-forgot" tabIndex={-1} disabled>
-                  Forgot password?
-                </button>
-              </div>
+              <label htmlFor="si-password">Password</label>
               <input
                 id="si-password"
                 type="password"

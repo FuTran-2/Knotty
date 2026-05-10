@@ -1255,6 +1255,27 @@
   min-height: 42px;
 }
 
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #8b98b8;
+  font-size: 0.8rem;
+  margin: -8px 0;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: rgba(185, 203, 240, 0.58);
+}
+
+.login-divider span {
+  line-height: 1;
+}
+
 .login-hosted-submit:hover:not(:disabled) {
   opacity: 0.9;
   box-shadow: 0 12px 28px rgba(56, 113, 255, 0.36);

@@ -7,7 +7,7 @@ import {
   signOut as cognitoSignOut,
   signUp as cognitoSignUp,
 } from 'aws-amplify/auth'
-import { isCognitoConfigured } from './amplifyConfig'
+import { configureCognitoAuth, isCognitoConfigured } from './amplifyConfig'
 
 export type AuthUser = {
   email: string
@@ -114,14 +114,19 @@ export async function confirmSignUp(email: string, code: string): Promise<void> 
 
 export async function signInWithHostedUi(): Promise<void> {
   assertCognitoConfigured()
-  await signInWithRedirect()
+  await signInWithRedirect({ options: { prompt: 'LOGIN' } })
 }
 
 // ── Sign out ─────────────────────────────────────────────────────────────────
 
 export async function signOut(): Promise<void> {
   if (!isCognitoConfigured) return
-  await cognitoSignOut()
+  configureCognitoAuth({ includeOAuth: false })
+  try {
+    await cognitoSignOut({ global: false })
+  } finally {
+    configureCognitoAuth()
+  }
 }
 
 // ── Restore session ──────────────────────────────────────────────────────────
