@@ -1,6 +1,7 @@
 import {
   confirmSignUp as cognitoConfirmSignUp,
   fetchUserAttributes,
+  fetchAuthSession,
   getCurrentUser as cognitoGetCurrentUser,
   signIn as cognitoSignIn,
   signInWithRedirect,
@@ -35,6 +36,16 @@ function authUserFromAttributes(username: string, attrs: Record<string, string |
     email,
     name: attrs.name ?? email.split('@')[0],
   }
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function isOAuthCallbackUrl() {
+  if (typeof window === 'undefined') return false
+  const params = new URLSearchParams(window.location.search)
+  return params.has('code') && params.has('state')
 }
 
 // ── Sign in ──────────────────────────────────────────────────────────────────
@@ -108,11 +119,18 @@ export async function signOut(): Promise<void> {
 export async function getCurrentUser(): Promise<AuthUser | null> {
   if (!isCognitoConfigured) return null
 
-  try {
-    const user = await cognitoGetCurrentUser()
-    const attrs = await fetchUserAttributes()
-    return authUserFromAttributes(user.username, attrs)
-  } catch {
-    return null
+  const attempts = isOAuthCallbackUrl() ? 12 : 2
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      await fetchAuthSession()
+      const user = await cognitoGetCurrentUser()
+      const attrs = await fetchUserAttributes()
+      return authUserFromAttributes(user.username, attrs)
+    } catch {
+      if (attempt < attempts - 1) await sleep(300)
+    }
   }
+
+  return null
 }
