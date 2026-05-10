@@ -88,6 +88,7 @@ export function Sidebar({
     const name = groupName.trim()
     if (!name) return
     onAddGroup(name)
+    onActiveGroupChange('all') // navigate to main view so the new bubble is visible
     setGroupName('')
     setOpenPanel(null)
   }

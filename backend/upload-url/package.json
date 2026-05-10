@@ -1,0 +1,11 @@
+{
+  "name": "knotty-upload-url",
+  "version": "1.0.0",
+  "description": "Lambda: generate presigned S3 PUT URL for contact photo uploads",
+  "type": "module",
+  "main": "index.mjs",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.0.0",
+    "@aws-sdk/s3-request-presigner": "^3.0.0"
+  }
+}

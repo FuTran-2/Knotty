@@ -1,24 +1,38 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  forceCenter,
+  forceCollide,
+  forceLink,
+  forceManyBody,
+  forceSimulation,
+} from 'd3-force'
+import type { SimulationNodeDatum } from 'd3-force'
+import {
   ACCOUNT_NAME,
   ACCOUNT_PHOTO,
   RELATIONSHIP_COLORS,
   RELATIONSHIP_ORDER,
+  createAvatarUrl,
   normalizeRelationship,
 } from '../types/network'
 import type { PersonNode, Relationship } from '../types/network'
+import { uploadPhoto } from '../lib/upload'
 
 type Position = { x: number; y: number }
+type FNode = SimulationNodeDatum & { id: string }
+type FLink = { source: string; target: string }
 
 type GraphViewProps = {
   visibleNodes: PersonNode[]
   selectedNode: PersonNode | null
   activeGroup: string
+  /** All known group names (including standalone groups with no members yet) */
+  allGroups: string[]
   onActiveGroupChange: (group: string) => void
   onSelectNode: (nodeId: string) => void
   onUpdateNode: (
     nodeId: string,
-    patch: Partial<Pick<PersonNode, 'name' | 'contact' | 'notes' | 'relationship' | 'groups'>>,
+    patch: Partial<Pick<PersonNode, 'name' | 'photo' | 'contact' | 'notes' | 'relationship' | 'groups'>>,
   ) => void
   onDeleteNode: (nodeId: string) => void
 }
@@ -27,41 +41,49 @@ export function GraphView({
   visibleNodes,
   selectedNode,
   activeGroup,
+  allGroups,
   onActiveGroupChange,
   onSelectNode,
   onUpdateNode,
   onDeleteNode,
 }: GraphViewProps) {
-  // ── Measured canvas size ──────────────────────────────────────────────────
+  // ── Canvas size ───────────────────────────────────────────────────────────
   const [graphSize, setGraphSize] = useState({ width: 0, height: 0 })
 
-  // ── Viewport: pan (screen-pixel offset) + zoom factor ────────────────────
+  // ── Viewport ──────────────────────────────────────────────────────────────
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const [isPanning, setIsPanning] = useState(false)
   const [isDraggingNode, setIsDraggingNode] = useState(false)
 
-  // ── Per-node dragged positions (world coords, override computed layout) ───
-  const [nodeOverrides, setNodeOverrides] = useState<Record<string, Position>>({})
+  // ── Force-simulation positions (updated on every sim tick) ────────────────
+  const [groupPositions, setGroupPositions] = useState<Record<string, Position>>({})
+  const [personPositions, setPersonPositions] = useState<Record<string, Position>>({})
+
+  // ── Simulation refs (mutable — mutations don't trigger re-render) ─────────
+  const groupSimRef = useRef<ReturnType<typeof forceSimulation<FNode>> | null>(null)
+  const personSimRef = useRef<ReturnType<typeof forceSimulation<FNode>> | null>(null)
+  const groupSimNodesRef = useRef<FNode[]>([])
+  const personSimNodesRef = useRef<FNode[]>([])
 
   // ── Edit popup ────────────────────────────────────────────────────────────
   const [editingPersonId, setEditingPersonId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState({
     name: '',
+    photo: '',
     contact: '',
     notes: '',
     relationship: 'Friend' as Relationship,
     groups: '',
   })
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const [photoError, setPhotoError] = useState<string | null>(null)
+  const photoInputRef = useRef<HTMLInputElement | null>(null)
 
   const graphPaneRef = useRef<HTMLDivElement | null>(null)
-  // tracks pan-drag start state
   const panStartRef = useRef<{ mx: number; my: number; px: number; py: number } | null>(null)
-  // suppress click after a pan drag
   const didPanRef = useRef(false)
-  // zoom ref so node-drag closure always reads the current value
   const zoomRef = useRef(zoom)
-  // node drag state ref
   const nodeDragRef = useRef<{
     nodeId: string
     startWorldX: number
@@ -70,18 +92,15 @@ export function GraphView({
     startMy: number
     moved: boolean
   } | null>(null)
-  // suppress click on node after it was dragged
   const nodeDragMovedRef = useRef(false)
+  // whether we are currently in the person view (captured at drag-start)
+  const dragIsPersonViewRef = useRef(false)
 
   const focusedGroup = activeGroup === 'all' ? null : activeGroup
 
-  // keep zoomRef in sync so drag closures see the latest zoom
   useEffect(() => { zoomRef.current = zoom }, [zoom])
 
-  // Reset node overrides whenever the focused group changes
-  useEffect(() => { setNodeOverrides({}) }, [focusedGroup])
-
-  // ── ResizeObserver: measure pane and update graphSize ─────────────────────
+  // ── ResizeObserver ────────────────────────────────────────────────────────
   useEffect(() => {
     const pane = graphPaneRef.current
     if (!pane) return
@@ -93,7 +112,7 @@ export function GraphView({
     return () => observer.disconnect()
   }, [])
 
-  // ── Keyboard shortcuts: Ctrl/Cmd +  -  0 ─────────────────────────────────
+  // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return
@@ -116,6 +135,7 @@ export function GraphView({
   // ── Derived data ──────────────────────────────────────────────────────────
   const groups = useMemo(() => {
     const bucket: Record<string, string[]> = {}
+    allGroups.forEach((g) => { bucket[g.toLowerCase()] = [] })
     visibleNodes.forEach((node) => {
       node.groups.forEach((g) => {
         const key = g.toLowerCase()
@@ -126,7 +146,7 @@ export function GraphView({
     return Object.entries(bucket)
       .map(([group, nodeIds]) => ({ group, nodeIds }))
       .sort((a, b) => b.nodeIds.length - a.nodeIds.length)
-  }, [visibleNodes])
+  }, [visibleNodes, allGroups])
 
   const memberNodes = useMemo(() => {
     if (!focusedGroup) return []
@@ -138,37 +158,96 @@ export function GraphView({
     [focusedGroup, memberNodes],
   )
 
-  // ── Node positions in world coordinates ──────────────────────────────────
   const cx = graphSize.width / 2
   const cy = graphSize.height / 2
 
-  const groupPositions = useMemo<Record<string, Position>>(() => {
-    if (!graphSize.width) return {}
-    const radius = Math.min(graphSize.width, graphSize.height) * 0.28
-    const positions: Record<string, Position> = {}
-    groups.forEach((item, i) => {
-      const angle = (i / Math.max(groups.length, 1)) * Math.PI * 2 - Math.PI / 2
-      positions[item.group] = {
-        x: cx + Math.cos(angle) * radius,
-        y: cy + Math.sin(angle) * radius,
-      }
-    })
-    return positions
-  }, [cx, cy, graphSize.width, graphSize.height, groups])
+  // ── Group force simulation ─────────────────────────────────────────────────
+  // Runs when in the "all groups" view. Each group node is connected to the
+  // fixed center, repels other groups, and avoids overlap.
+  useEffect(() => {
+    groupSimRef.current?.stop()
+    if (!graphSize.width || !graphSize.height || focusedGroup !== null) return
+    if (groups.length === 0) { setGroupPositions({}); return }
 
-  const personPositions = useMemo<Record<string, Position>>(() => {
-    if (!graphSize.width) return {}
-    const radius = Math.min(graphSize.width, graphSize.height) * 0.3
-    const positions: Record<string, Position> = {}
-    displayedNodes.forEach((node, i) => {
-      const angle = (i / Math.max(displayedNodes.length, 1)) * Math.PI * 2 - Math.PI / 2
-      positions[node.id] = {
+    const radius = Math.min(graphSize.width, graphSize.height) * 0.28
+    const linkDist = Math.max(radius * 0.8, 100)
+
+    // Reuse existing positions so nodes don't jump when groups change
+    const prevMap = new Map(groupSimNodesRef.current.map((n) => [n.id, n]))
+
+    const simNodes: FNode[] = groups.map((item, i) => {
+      const prev = prevMap.get(item.group)
+      if (prev) return { id: item.group, x: prev.x ?? cx, y: prev.y ?? cy, fx: prev.fx, fy: prev.fy }
+      const angle = (i / Math.max(groups.length, 1)) * Math.PI * 2 - Math.PI / 2
+      return {
+        id: item.group,
         x: cx + Math.cos(angle) * radius,
         y: cy + Math.sin(angle) * radius,
       }
     })
-    return positions
-  }, [displayedNodes, cx, cy, graphSize.width, graphSize.height])
+
+    const centerNode: FNode = { id: '__center__', x: cx, y: cy, fx: cx, fy: cy }
+    const allSimNodes: FNode[] = [centerNode, ...simNodes]
+    const links: FLink[] = simNodes.map((n) => ({ source: '__center__', target: n.id }))
+
+    groupSimNodesRef.current = simNodes
+
+    const sim = forceSimulation<FNode>(allSimNodes)
+      .force('link', forceLink<FNode, FLink>(links).id((d) => d.id).distance(linkDist).strength(0.9))
+      .force('charge', forceManyBody<FNode>().strength(-280))
+      .force('collide', forceCollide<FNode>(62))
+      .force('center', forceCenter<FNode>(cx, cy).strength(0.04))
+      .on('tick', () => {
+        const pos: Record<string, Position> = {}
+        simNodes.forEach((n) => { if (n.x != null && n.y != null) pos[n.id] = { x: n.x, y: n.y } })
+        setGroupPositions({ ...pos })
+      })
+
+    groupSimRef.current = sim
+    return () => { sim.stop() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups.map((g) => g.group).join(','), cx, cy, graphSize.width, graphSize.height, focusedGroup])
+
+  // ── Person force simulation ───────────────────────────────────────────────
+  // Runs when inside a focused group. Person nodes spread around the center.
+  useEffect(() => {
+    personSimRef.current?.stop()
+    if (!graphSize.width || !graphSize.height || focusedGroup === null) return
+    if (displayedNodes.length === 0) { setPersonPositions({}); return }
+
+    const radius = Math.min(graphSize.width, graphSize.height) * 0.3
+    const linkDist = Math.max(radius * 0.75, 90)
+
+    const simNodes: FNode[] = displayedNodes.map((node, i) => {
+      const angle = (i / Math.max(displayedNodes.length, 1)) * Math.PI * 2 - Math.PI / 2
+      return {
+        id: node.id,
+        x: cx + Math.cos(angle) * radius,
+        y: cy + Math.sin(angle) * radius,
+      }
+    })
+
+    const centerNode: FNode = { id: '__center__', x: cx, y: cy, fx: cx, fy: cy }
+    const allSimNodes: FNode[] = [centerNode, ...simNodes]
+    const links: FLink[] = simNodes.map((n) => ({ source: '__center__', target: n.id }))
+
+    personSimNodesRef.current = simNodes
+
+    const sim = forceSimulation<FNode>(allSimNodes)
+      .force('link', forceLink<FNode, FLink>(links).id((d) => d.id).distance(linkDist).strength(0.9))
+      .force('charge', forceManyBody<FNode>().strength(-220))
+      .force('collide', forceCollide<FNode>(52))
+      .force('center', forceCenter<FNode>(cx, cy).strength(0.04))
+      .on('tick', () => {
+        const pos: Record<string, Position> = {}
+        simNodes.forEach((n) => { if (n.x != null && n.y != null) pos[n.id] = { x: n.x, y: n.y } })
+        setPersonPositions({ ...pos })
+      })
+
+    personSimRef.current = sim
+    return () => { sim.stop() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayedNodes.map((n) => n.id).join(','), cx, cy, graphSize.width, graphSize.height, focusedGroup])
 
   const editingPerson = useMemo(
     () => visibleNodes.find((n) => n.id === editingPersonId) ?? null,
@@ -176,9 +255,7 @@ export function GraphView({
   )
 
   // ── Group navigation ──────────────────────────────────────────────────────
-  const openGroup = (group: string) => {
-    onActiveGroupChange(group)
-  }
+  const openGroup = (group: string) => { onActiveGroupChange(group) }
 
   const backToGroups = () => {
     onActiveGroupChange('all')
@@ -187,9 +264,11 @@ export function GraphView({
 
   // ── Edit popup helpers ────────────────────────────────────────────────────
   const beginEditing = (node: PersonNode) => {
+    setPhotoError(null)
     setEditingPersonId(node.id)
     setEditDraft({
       name: node.name,
+      photo: node.photo,
       contact: node.contact,
       notes: node.notes,
       relationship: node.relationship,
@@ -201,6 +280,7 @@ export function GraphView({
     if (!editingPersonId) return
     onUpdateNode(editingPersonId, {
       name: editDraft.name.trim(),
+      photo: editDraft.photo || createAvatarUrl(editDraft.name.trim()),
       contact: editDraft.contact.trim(),
       notes: editDraft.notes.trim(),
       relationship: normalizeRelationship(editDraft.relationship),
@@ -212,17 +292,31 @@ export function GraphView({
     setEditingPersonId(null)
   }
 
+  const handlePhotoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPhotoUploading(true)
+    setPhotoError(null)
+    try {
+      const url = await uploadPhoto(file, editingPersonId ?? undefined)
+      setEditDraft((d) => ({ ...d, photo: url }))
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setPhotoError(msg)
+    } finally {
+      setPhotoUploading(false)
+      if (photoInputRef.current) photoInputRef.current.value = ''
+    }
+  }
+
   // ── Node drag ─────────────────────────────────────────────────────────────
-  // worldPos: current world position of the node being pressed
-  const handleNodeMouseDown = (
-    e: React.MouseEvent,
-    nodeId: string,
-    worldPos: Position,
-  ) => {
-    e.stopPropagation() // prevent background pan from activating
+  // Fixes the node in the simulation while dragging, then releases on mouse-up.
+  const handleNodeMouseDown = (e: React.MouseEvent, nodeId: string, worldPos: Position) => {
+    e.stopPropagation()
     if (e.button !== 0) return
 
     nodeDragMovedRef.current = false
+    dragIsPersonViewRef.current = focusedGroup !== null
     nodeDragRef.current = {
       nodeId,
       startWorldX: worldPos.x,
@@ -230,6 +324,16 @@ export function GraphView({
       startMx: e.clientX,
       startMy: e.clientY,
       moved: false,
+    }
+
+    // Fix node in the active simulation so the force doesn't fight the drag
+    const simNodes = dragIsPersonViewRef.current ? personSimNodesRef.current : groupSimNodesRef.current
+    const simNode = simNodes.find((n) => n.id === nodeId)
+    if (simNode) {
+      simNode.fx = worldPos.x
+      simNode.fy = worldPos.y
+      const sim = dragIsPersonViewRef.current ? personSimRef.current : groupSimRef.current
+      sim?.alphaTarget(0.3).restart()
     }
 
     const onMove = (ev: MouseEvent) => {
@@ -242,22 +346,30 @@ export function GraphView({
         nodeDragMovedRef.current = true
         setIsDraggingNode(true)
       }
-      // Convert screen-pixel delta → world-coordinate delta (account for zoom)
-      setNodeOverrides((prev) => ({
-        ...prev,
-        [drag.nodeId]: {
-          x: drag.startWorldX + dx / zoomRef.current,
-          y: drag.startWorldY + dy / zoomRef.current,
-        },
-      }))
+      const newX = drag.startWorldX + dx / zoomRef.current
+      const newY = drag.startWorldY + dy / zoomRef.current
+      // Move the fixed position in the simulation
+      if (simNode) { simNode.fx = newX; simNode.fy = newY }
+      // Immediately reflect position in state for lag-free visual feedback
+      if (dragIsPersonViewRef.current) {
+        setPersonPositions((prev) => ({ ...prev, [nodeId]: { x: newX, y: newY } }))
+      } else {
+        setGroupPositions((prev) => ({ ...prev, [nodeId]: { x: newX, y: newY } }))
+      }
     }
 
     const onUp = () => {
       nodeDragRef.current = null
       setIsDraggingNode(false)
+      const sim = dragIsPersonViewRef.current ? personSimRef.current : groupSimRef.current
+      sim?.alphaTarget(0)
+      // If it was just a click (no real move), release the node back into the sim
+      if (simNode && !nodeDragMovedRef.current) {
+        simNode.fx = undefined
+        simNode.fy = undefined
+      }
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
-      // Let the click event fire first, then clear the flag
       setTimeout(() => { nodeDragMovedRef.current = false }, 0)
     }
 
@@ -265,7 +377,7 @@ export function GraphView({
     window.addEventListener('mouseup', onUp)
   }
 
-  // ── Mouse wheel zoom (zoom centered on cursor position) ───────────────────
+  // ── Mouse wheel zoom ──────────────────────────────────────────────────────
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault()
     const rect = graphPaneRef.current?.getBoundingClientRect()
@@ -275,7 +387,6 @@ export function GraphView({
     const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1
     const newZoom = Math.min(4, Math.max(0.2, zoom * factor))
     const ratio = newZoom / zoom
-    // Keep world point under cursor fixed
     setPan((p) => ({
       x: mx - cx - (mx - cx - p.x) * ratio,
       y: my - cy - (my - cy - p.y) * ratio,
@@ -302,7 +413,6 @@ export function GraphView({
       setIsPanning(false)
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
-      // Let the click event fire first, then clear the flag
       setTimeout(() => { didPanRef.current = false }, 0)
     }
     window.addEventListener('mousemove', onMove)
@@ -314,11 +424,7 @@ export function GraphView({
   const zoomOut = () => setZoom((z) => Math.max(0.2, +(z / 1.25).toFixed(4)))
   const zoomReset = () => { setZoom(1); setPan({ x: 0, y: 0 }) }
 
-  // ── Don't render graph until pane is measured ─────────────────────────────
   const ready = graphSize.width > 0 && graphSize.height > 0
-
-  // ── Inner group SVG transform ─────────────────────────────────────────────
-  // Applies pan + zoom centered around the canvas center (cx, cy)
   const innerTransform = `translate(${cx + pan.x} ${cy + pan.y}) scale(${zoom}) translate(${-cx} ${-cy})`
 
   return (
@@ -355,15 +461,13 @@ export function GraphView({
               </radialGradient>
             </defs>
 
-            {/* Static background glow — not affected by pan/zoom */}
             <rect width={graphSize.width} height={graphSize.height} fill="url(#bg-glow)" />
 
-            {/* All graph content inside the pan/zoom group */}
             <g transform={innerTransform}>
-              {/* Edges — follow overridden positions */}
+              {/* Edges */}
               {focusedGroup
                 ? displayedNodes.map((node) => {
-                    const pos = nodeOverrides[node.id] ?? personPositions[node.id]
+                    const pos = personPositions[node.id]
                     if (!pos) return null
                     return (
                       <line
@@ -375,7 +479,7 @@ export function GraphView({
                     )
                   })
                 : groups.map((item) => {
-                    const pos = nodeOverrides[item.group] ?? groupPositions[item.group]
+                    const pos = groupPositions[item.group]
                     if (!pos) return null
                     return (
                       <line
@@ -404,20 +508,20 @@ export function GraphView({
               {/* Group or person nodes */}
               {focusedGroup
                 ? displayedNodes.map((node, index) => {
-                    // Use dragged position if available, else computed layout
-                    const basePos = personPositions[node.id]
-                    if (!basePos) return null
-                    const pos = nodeOverrides[node.id] ?? basePos
+                    const pos = personPositions[node.id]
+                    if (!pos) return null
                     const isSelected = node.id === selectedNode?.id
                     return (
                       <g
                         key={`${node.id}-${focusedGroup}`}
                         className="node-group person-node-enter"
-                        style={{ animationDelay: `${index * 40}ms`, cursor: isDraggingNode && nodeDragRef.current?.nodeId === node.id ? 'grabbing' : 'grab' }}
+                        style={{
+                          animationDelay: `${index * 40}ms`,
+                          cursor: isDraggingNode && nodeDragRef.current?.nodeId === node.id ? 'grabbing' : 'grab',
+                        }}
                         onMouseDown={(e) => handleNodeMouseDown(e, node.id, pos)}
                         onClick={(e) => {
                           e.stopPropagation()
-                          // Ignore click if the node was dragged
                           if (nodeDragMovedRef.current || didPanRef.current) return
                           onSelectNode(node.id)
                           beginEditing(node)
@@ -442,9 +546,8 @@ export function GraphView({
                     )
                   })
                 : groups.map((item) => {
-                    const basePos = groupPositions[item.group]
-                    if (!basePos) return null
-                    const pos = nodeOverrides[item.group] ?? basePos
+                    const pos = groupPositions[item.group]
+                    if (!pos) return null
                     return (
                       <g
                         key={item.group}
@@ -481,6 +584,51 @@ export function GraphView({
               Close
             </button>
           </div>
+
+          {/* Photo upload */}
+          <div className="node-popup-photo">
+            <img
+              src={editDraft.photo || createAvatarUrl(editDraft.name)}
+              alt={editDraft.name}
+              className="node-popup-avatar"
+            />
+            <div className="node-popup-photo-actions">
+              <button
+                type="button"
+                className="photo-upload-btn"
+                disabled={photoUploading}
+                onClick={() => photoInputRef.current?.click()}
+              >
+                {photoUploading ? (
+                  <><span className="photo-upload-spinner" /> Processing…</>
+                ) : (
+                  'Upload photo'
+                )}
+              </button>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handlePhotoFileChange}
+              />
+              {editDraft.photo && (
+                <button
+                  type="button"
+                  className="photo-remove-btn"
+                  onClick={() => setEditDraft((d) => ({ ...d, photo: '' }))}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+          {photoError && (
+            <div className="photo-upload-error">
+              Upload failed: {photoError}
+            </div>
+          )}
+
           <div className="node-popup-grid">
             <label>
               Name

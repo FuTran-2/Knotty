@@ -85,7 +85,7 @@ function App() {
 
   const updateNode = (
     nodeId: string,
-    patch: Partial<Pick<PersonNode, 'name' | 'contact' | 'notes' | 'relationship' | 'groups'>>,
+    patch: Partial<Pick<PersonNode, 'name' | 'photo' | 'contact' | 'notes' | 'relationship' | 'groups'>>,
   ) => {
     setNodes((current) =>
       current.map((node) => {
@@ -145,6 +145,7 @@ function App() {
         visibleNodes={visibleNodes}
         selectedNode={selectedNode}
         activeGroup={activeGroup}
+        allGroups={allGroups}
         onActiveGroupChange={setActiveGroup}
         onSelectNode={setSelectedNodeId}
         onUpdateNode={updateNode}

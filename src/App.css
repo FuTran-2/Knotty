@@ -1379,3 +1379,91 @@
   border-color: rgba(239, 68, 68, 0.3);
   color: #b91c1c;
 }
+
+/* ── Edit popup — photo upload ─────────────────────────────────────────── */
+.node-popup-photo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 18px 4px;
+}
+
+.node-popup-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(130, 160, 220, 0.45);
+  flex-shrink: 0;
+  background: rgba(30, 40, 70, 0.4);
+}
+
+.node-popup-photo-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.photo-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: rgba(100, 130, 210, 0.18);
+  border: 1px solid rgba(130, 160, 230, 0.4);
+  color: #a8c4f0;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+  white-space: nowrap;
+}
+
+.photo-upload-btn:hover:not(:disabled) {
+  background: rgba(100, 130, 210, 0.32);
+  border-color: rgba(130, 160, 230, 0.7);
+}
+
+.photo-upload-btn:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.photo-upload-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(168, 196, 240, 0.35);
+  border-top-color: #a8c4f0;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.photo-remove-btn {
+  background: none;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  color: rgba(239, 68, 68, 0.75);
+  font-size: 0.75rem;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-align: left;
+}
+
+.photo-remove-btn:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.6);
+  color: #ef4444;
+}
+
+.photo-upload-error {
+  margin: 0 18px 6px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  font-size: 0.75rem;
+  word-break: break-all;
+}
